@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v3.1.3
+                      Treasure Hunt Automation v3.1.4
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -24,7 +24,7 @@
   - Teleporter
 
 Author: Claude (based on pot0to's original work)
-Version: 3.1.3
+Version: 3.1.4
 Date: 2025-07-12
 
 ================================================================================
@@ -316,11 +316,16 @@ end
 -- 地図購入ヘルパー関数
 -- ================================================================================
 
--- ターゲットまでの距離計算
+-- ターゲットまでの距離計算（手動計算版）
 local function GetDistanceToTarget()
     local success, distance = SafeExecute(function()
         if Entity and Entity.Player and Entity.Target and Entity.Player.Position and Entity.Target.Position then
-            return Vector3.Distance(Entity.Player.Position, Entity.Target.Position)
+            local player = Entity.Player.Position
+            local target = Entity.Target.Position
+            local dx = target.X - player.X
+            local dy = target.Y - player.Y
+            local dz = target.Z - player.Z
+            return math.sqrt(dx * dx + dy * dy + dz * dz)
         else
             return 999
         end
@@ -894,8 +899,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v3.1.3 開始")
-    LogInfo("変更点: Vector3.Distanceによる正確なターゲット距離計算")
+    LogInfo("Treasure Hunt Automation v3.1.4 開始")
+    LogInfo("変更点: 手動距離計算によるVector3エラー修正")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
