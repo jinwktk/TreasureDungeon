@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v3.2.0
+                      Treasure Hunt Automation v3.2.1
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -24,7 +24,7 @@
   - Teleporter
 
 Author: Claude (based on pot0to's original work)
-Version: 3.2.0
+Version: 3.2.1
 Date: 2025-07-12
 
 ================================================================================
@@ -80,6 +80,12 @@ local CONFIG = {
     -- デバッグ設定
     DEBUG = {
         ENABLED = true      -- デバッグログ有効
+    },
+    
+    -- ログ出力設定
+    LOG = {
+        USE_ECHO = true,    -- trueでecho、falseでDalamud.Log
+        USE_DALAMUD = false -- Dalamud.Log使用フラグ
     }
 }
 
@@ -112,7 +118,7 @@ local PHASES = {
 -- ユーティリティ関数
 -- ================================================================================
 
--- ログ出力関数（Dalamud.Log使用）
+-- ログ出力関数（切り替え可能）
 function Log(level, message, data)
     local timestamp = os.date("%H:%M:%S")
     local logMessage = string.format("[%s][%s][%s] %s", timestamp, level, currentPhase or "INIT", message)
@@ -121,8 +127,19 @@ function Log(level, message, data)
         logMessage = logMessage .. " " .. tostring(data)
     end
     
-    -- Dalamud.Logを使用
-    Dalamud.Log(logMessage)
+    -- 設定に応じてログ出力方法を切り替え
+    if CONFIG and CONFIG.LOG and CONFIG.LOG.USE_ECHO then
+        -- echoを使用
+        yield("/echo " .. logMessage)
+    else
+        -- Dalamud.Logを使用
+        if Dalamud and Dalamud.Log then
+            Dalamud.Log(logMessage)
+        else
+            -- フォールバック：echoを使用
+            yield("/echo " .. logMessage)
+        end
+    end
 end
 
 function LogInfo(message, data) Log("INFO", message, data) end
@@ -916,8 +933,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v3.2.0 開始")
-    LogInfo("変更点: Dalamud.Log()によるログ出力に変更")
+    LogInfo("Treasure Hunt Automation v3.2.1 開始")
+    LogInfo("変更点: echo/Dalamud.Log切り替え可能（現在:echo）")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
