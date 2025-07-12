@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v4.6.0
+                      Treasure Hunt Automation v4.7.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -24,7 +24,7 @@
   - Teleporter
 
 Author: Claude (based on pot0to's original work)
-Version: 4.6.0
+Version: 4.7.0
 Date: 2025-07-12
 
 ================================================================================
@@ -448,9 +448,8 @@ local function IsNearFlag(targetDistance)
     return distance <= targetDistance
 end
 
--- 現在地チェック関数（新SND v12.0.0+ API対応）
-local function IsInLimsa()
-    -- 新SND v12.0.0+での正しいゾーン情報取得
+-- 現在のゾーンID取得（新SND v12.0.0+ API対応）
+local function GetCurrentZoneID()
     local success, zoneId = SafeExecute(function()
         -- 最新SND API: GetZoneID() 関数を使用
         if GetZoneID then
@@ -462,18 +461,44 @@ local function IsInLimsa()
         else
             return 0
         end
-    end, "Failed to get zone ID")
+    end, "Failed to get current zone ID")
     
+    return success and zoneId or 0
+end
+
+-- 現在地チェック関数（リムサ・ロミンサ専用）
+local function IsInLimsa()
+    local zoneId = GetCurrentZoneID()
     LogDebug("現在のゾーンID: " .. tostring(zoneId))
     
     -- リムサ・ロミンサのゾーンID: 129
-    if success and zoneId == 129 then
+    if zoneId == 129 then
         LogDebug("リムサ・ロミンサにいることを確認 (ゾーンID: 129)")
         return true
     end
     
     LogDebug("リムサ・ロミンサではない場所にいます (ゾーンID: " .. tostring(zoneId) .. ")")
     return false
+end
+
+-- フラグゾーンと現在ゾーンの比較
+local function IsInSameZoneAsFlag()
+    local success, result = SafeExecute(function()
+        -- フラグゾーンIDを取得
+        if not (Instances and Instances.Map and Instances.Map.Flag and Instances.Map.Flag.TerritoryId) then
+            LogDebug("フラグ情報が取得できません")
+            return false
+        end
+        
+        local flagZoneId = Instances.Map.Flag.TerritoryId
+        local currentZoneId = GetCurrentZoneID()
+        
+        LogDebug("フラグゾーンID: " .. tostring(flagZoneId) .. ", 現在のゾーンID: " .. tostring(currentZoneId))
+        
+        return flagZoneId == currentZoneId and currentZoneId ~= 0
+    end, "Failed to compare zone IDs")
+    
+    return success and result or false
 end
 
 -- 地図自動購入機能（リムサ・ロミンサ版）
@@ -752,13 +777,12 @@ local function ExecuteMapPurchasePhase()
         yield("/gaction ディサイファー")
         Wait(3)
         
-        -- フラグ地点へのテレポート（フラグ位置チェック付き）
+        -- フラグ地点へのテレポート（ゾーンID比較でスキップ判定）
         LogInfo("フラグ地点へのテレポートを確認中...")
         
-        -- 現在フラグ地点にいるかチェック
-        if IsNearFlag(10.0) then  -- フラグから10yalm以内にいる場合
-            local currentDistance = GetDistanceToFlag()
-            LogInfo("すでにフラグ地点付近にいます（距離: " .. string.format("%.2f", currentDistance) .. "yalm）- テレポートをスキップ")
+        -- 同じゾーンにいるかチェック
+        if IsInSameZoneAsFlag() then
+            LogInfo("すでにフラグと同じゾーンにいます - テレポートをスキップ")
             Wait(2)  -- 短い待機
             ChangePhase("MOVEMENT", "地図解読完了・テレポートスキップ")
             return
@@ -1102,8 +1126,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v4.6.0 開始")
-    LogInfo("変更点: フラグ地点にいる場合のテレポートスキップ機能実装")
+    LogInfo("Treasure Hunt Automation v4.7.0 開始")
+    LogInfo("変更点: ゾーンID比較でテレポートスキップ判定機能実装")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
