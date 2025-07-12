@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v3.2.3
+                      Treasure Hunt Automation v3.2.4
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -24,7 +24,7 @@
   - Teleporter
 
 Author: Claude (based on pot0to's original work)
-Version: 3.2.3
+Version: 3.2.4
 Date: 2025-07-12
 
 ================================================================================
@@ -678,16 +678,26 @@ local function ExecuteMapPurchasePhase()
             -- GetFlagZone()とGetAetherytesInZone()を使用
             if GetFlagZone and GetAetherytesInZone then
                 local flagZone = GetFlagZone()
+                LogInfo("フラグゾーンID: " .. tostring(flagZone))
+                
                 local aetherytes = GetAetherytesInZone(flagZone)
+                LogInfo("ゾーン内エーテライト数: " .. tostring(aetherytes and aetherytes.Count or 0))
                 
                 if aetherytes and aetherytes.Count > 0 then
                     local aetheryteName = GetAetheryteName and GetAetheryteName(aetherytes[0])
                     if aetheryteName then
-                        LogInfo("エーテライトに移動: " .. tostring(aetheryteName))
+                        LogInfo("テレポート先エーテライト: " .. tostring(aetheryteName))
+                        yield("/echo テレポート実行: " .. tostring(aetheryteName))
                         yield("/tp " .. tostring(aetheryteName))
                         return true
+                    else
+                        LogWarn("エーテライト名の取得に失敗")
                     end
+                else
+                    LogWarn("ゾーン内にエーテライトが見つかりません")
                 end
+            else
+                LogWarn("GetFlagZoneまたはGetAetherytesInZone関数が利用できません")
             end
             return false
         end, "Failed to execute TeleportToFlag")
@@ -949,8 +959,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v3.2.3 開始")
-    LogInfo("変更点: TeleportToFlag.lua参考の自動テレポート実装")
+    LogInfo("Treasure Hunt Automation v3.2.4 開始")
+    LogInfo("変更点: テレポート先エーテライト名の詳細ログ追加")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
