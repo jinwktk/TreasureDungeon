@@ -831,6 +831,7 @@ local phaseExecutors = {
 -- メインループ
 local function MainLoop()
     LogInfo("Treasure Hunt Automation v3.0.9 開始")
+    LogInfo("変更点: Svc.ClientState.TerritoryTypeでゾーン検出修正")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
