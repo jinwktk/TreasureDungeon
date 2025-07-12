@@ -83,6 +83,10 @@ local stopRequested = false
 local iteration = 0
 local maxIterations = 1000
 
+-- フェーズ状態管理
+local movementStarted = false
+local digExecuted = false
+
 -- フェーズ定義
 local PHASES = {
     INIT = "初期化",
@@ -237,6 +241,13 @@ local function ChangePhase(newPhase, reason)
     end
     
     LogInfo(string.format("フェーズ変更: %s → %s", PHASES[currentPhase] or currentPhase, PHASES[newPhase] or newPhase), reason)
+    
+    -- フェーズ変更時の状態リセット
+    if newPhase == "MOVEMENT" then
+        movementStarted = false
+        digExecuted = false
+    end
+    
     currentPhase = newPhase
     phaseStartTime = os.clock()
 end
@@ -327,36 +338,87 @@ local function ExecuteMapPurchasePhase()
         LogInfo("地図を所持しています。解読を実行します")
         yield("/gaction ディサイファー")
         Wait(3)
-        ChangePhase("MOVEMENT", "地図解読完了")
+        
+        -- 解読後、テレポートを実行
+        LogInfo("フラグ地点にテレポート中...")
+        if HasPlugin("Teleporter") then
+            yield("/flag")
+        else
+            yield("/tp " .. "エーテライト")  -- 汎用テレポートコマンド
+        end
+        Wait(5)  -- テレポート完了待機
+        
+        ChangePhase("MOVEMENT", "地図解読・テレポート完了")
         return
     end
     
     LogInfo("地図を購入する必要があります")
-    -- ここで地図購入処理を実装
-    -- 現在は手動での地図準備を前提とする
-    LogWarn("地図を手動で準備してください")
-    Wait(5)
+    
+    -- マーケットボード自動購入
+    if ExecuteMapPurchase(mapConfig) then
+        LogInfo("地図購入完了")
+        -- 購入後は次のループで解読処理へ
+    else
+        LogWarn("地図購入に失敗。手動で準備してください")
+        Wait(5)
+    end
+end
+
+-- 地図自動購入機能
+local function ExecuteMapPurchase(mapConfig)
+    LogInfo("マーケットボードで地図を購入中...")
+    
+    -- マーケットボードを開く
+    yield("/marketboard")
+    Wait(3)
+    
+    -- 地図を検索
+    if IsAddonVisible("ItemSearchResult") then
+        LogInfo("マーケットボード表示確認")
+        
+        -- 検索実行（簡易実装）
+        yield("/callback ItemSearchResult true 1 " .. mapConfig.itemId)
+        Wait(2)
+        
+        -- 購入実行（最初の結果を購入）
+        yield("/callback ItemSearchResult true 2 0")
+        Wait(2)
+        
+        -- 購入確認
+        if IsAddonVisible("SelectYesno") then
+            yield("/callback SelectYesno true 0") -- はい
+            Wait(3)
+        end
+        
+        LogInfo("購入処理完了")
+        return true
+    else
+        LogWarn("マーケットボードの表示に失敗")
+        return false
+    end
 end
 
 -- 移動フェーズ
 local function ExecuteMovementPhase()
-    LogInfo("宝の場所へ移動中...")
-    
-    -- vnavmeshによる移動
-    if not IsPlayerMoving() then
-        LogDebug("フラグ地点への移動を開始")
+    if not movementStarted then
+        LogInfo("宝の場所への移動を開始します")
         if HasPlugin("vnavmesh") then
             yield("/vnav flyflag")
+            movementStarted = true
+            LogDebug("vnavmeshで移動開始")
         else
             LogWarn("vnavmeshが利用できません。手動で移動してください")
+            movementStarted = true  -- 手動移動待機
         end
         Wait(2)
+        return
     end
     
     -- 移動完了チェック
-    if not IsPlayerMoving() and not IsInCombat() then
+    if not IsPlayerMoving() and not digExecuted then
         LogInfo("移動完了。発掘を実行します")
         yield("/gaction ディグ")
+        digExecuted = true
         Wait(3)
         
         -- 宝箱検出
@@ -365,7 +427,18 @@ local function ExecuteMovementPhase()
             Wait(2)
         end
         
+        -- 状態リセット
+        movementStarted = false
+        digExecuted = false
+        
         ChangePhase("COMBAT", "発掘完了、戦闘開始")
+        return
+    end
+    
+    -- 移動中の場合は待機
+    if IsPlayerMoving() then
+        LogDebug("移動中...")
+        Wait(1)
     end
 end
 
