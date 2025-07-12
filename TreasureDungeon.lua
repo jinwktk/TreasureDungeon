@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v4.3.0
+                      Treasure Hunt Automation v4.4.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -24,7 +24,7 @@
   - Teleporter
 
 Author: Claude (based on pot0to's original work)
-Version: 4.3.0
+Version: 4.4.0
 Date: 2025-07-12
 
 ================================================================================
@@ -711,15 +711,52 @@ local function ExecuteMapPurchasePhase()
         yield("/gaction ディサイファー")
         Wait(3)
         
-        -- フラグ地点へのテレポート（/echo <flag>コマンド使用）
+        -- フラグ地点へのテレポート（Excel.GetRow API使用）
         LogInfo("フラグ地点にテレポートします")
         
-        -- /echo <flag>コマンドを使用したシンプルテレポート
-        LogInfo("/echo <flag>コマンドでフラグ地点にテレポート実行")
-        yield("/echo <flag>")
+        -- Excel.GetRow APIを使用してテレポート先名を取得
+        local teleportSuccess = SafeExecute(function()
+            if Instances and Instances.Map and Instances.Map.Flag and Instances.Map.Flag.TerritoryId then
+                local flagZoneId = Instances.Map.Flag.TerritoryId
+                LogInfo("フラグゾーンID: " .. tostring(flagZoneId))
+                
+                -- Excel.GetRow APIでテレポート先名を取得
+                if Excel and Excel.GetRow then
+                    local territoryRow = Excel.GetRow("TerritoryType", flagZoneId)
+                    if territoryRow and territoryRow.Aetheryte and territoryRow.Aetheryte.PlaceName and territoryRow.Aetheryte.PlaceName.Name then
+                        local teleportName = territoryRow.Aetheryte.PlaceName.Name
+                        if teleportName and teleportName ~= "" then
+                            LogInfo("取得したテレポート先名: " .. tostring(teleportName))
+                            
+                            -- 自動テレポート実行
+                            yield("/tp " .. tostring(teleportName))
+                            LogInfo("自動テレポート実行: /tp " .. tostring(teleportName))
+                            return true
+                        else
+                            LogWarn("テレポート先名が空です")
+                        end
+                    else
+                        LogWarn("TerritoryType行またはAetheryte情報の取得に失敗")
+                    end
+                else
+                    LogWarn("Excel.GetRow API が利用できません")
+                end
+            else
+                LogWarn("フラグ情報が取得できません")
+            end
+            return false
+        end, "Failed to execute Excel API teleport")
         
-        LogInfo("フラグテレポート実行完了")
-        Wait(8)  -- テレポート完了待機
+        if teleportSuccess then
+            LogInfo("Excel API自動テレポート完了")
+            Wait(8)  -- テレポート完了待機
+        else
+            -- Excel API失敗時は/echo <flag>フォールバック
+            LogInfo("Excel API失敗。/echo <flag>でフォールバック実行")
+            yield("/echo <flag>")
+            LogInfo("フォールバックテレポート実行完了")
+            Wait(8)
+        end
         
         ChangePhase("MOVEMENT", "地図解読・テレポート完了")
         return
@@ -1021,8 +1058,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v4.3.0 開始")
-    LogInfo("変更点: /echo <flag>コマンド使用のシンプルテレポート実装")
+    LogInfo("Treasure Hunt Automation v4.4.0 開始")
+    LogInfo("変更点: Excel.GetRow API使用のテレポート先名取得機能実装")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
