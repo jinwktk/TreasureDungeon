@@ -316,50 +316,105 @@ end
 -- 地図購入ヘルパー関数
 -- ================================================================================
 
--- 地図自動購入機能（シンプル版）
+-- 地図自動購入機能（リムサ・ロミンサ版）
 local function ExecuteMapPurchase(mapConfig)
-    LogInfo("マーケットボードで地図を購入中...")
+    LogInfo("リムサ・ロミンサで地図を購入します")
     
-    -- マーケットボードを開く
-    yield("/marketboard")
-    Wait(5)  -- 表示待機を長めに
+    -- 1. リムサ・ロミンサにテレポート
+    LogInfo("リムサ・ロミンサにテレポート中...")
+    yield("/tp リムサ・ロミンサ")
+    Wait(10)  -- テレポート完了まで待機
     
-    -- G10地図を直接検索
+    -- 2. マーケットボードに移動
+    LogInfo("マーケットボードに向けて移動中...")
+    if HasPlugin("vnavmesh") then
+        -- vnavmeshでマーケットボードに移動（座標指定）
+        yield("/vnav goto 123.5 40.2 -38.8")  -- リムサのマーケットボード座標
+        Wait(5)
+        
+        -- 移動完了まで待機
+        while IsPlayerMoving() do
+            Wait(1)
+        end
+    else
+        LogWarn("vnavmeshが利用できません。手動でマーケットボードに移動してください")
+        Wait(10)
+    end
+    
+    -- 3. マーケットボードをターゲット
+    LogInfo("マーケットボードをターゲット中...")
+    yield("/target マーケットボード")
+    Wait(2)
+    
+    -- 4. マーケットボードとインタラクト
+    LogInfo("マーケットボードとインタラクト中...")
+    yield("/interact")
+    Wait(5)  -- マーケットボード表示待機
+    
+    -- 5. 地図を検索・購入
+    return ExecuteMapSearch(mapConfig)
+end
+
+-- マーケットボードでの地図検索・購入
+local function ExecuteMapSearch(mapConfig)
+    LogInfo("マーケットボードで地図を検索中...")
+    
     local searchTerm = mapConfig.searchTerm or CONFIG.MAP_TYPE
     LogInfo("検索キーワード: " .. searchTerm)
     
-    -- 検索テキストボックスに入力
-    yield("/send " .. searchTerm)
-    Wait(2)
-    
-    -- 検索実行
-    yield("/click search")
-    Wait(3)
-    
-    -- 検索結果から購入
-    if IsAddonVisible("ItemSearchResult") then
-        LogInfo("検索結果を確認")
-        
-        -- 最初の結果をクリック
-        yield("/click result1")
-        Wait(2)
-        
-        -- 購入ボタンをクリック
-        yield("/click purchase")
-        Wait(2)
-        
-        -- 購入確認
-        if IsAddonVisible("SelectYesno") then
-            yield("/callback SelectYesno true 0") -- はい
-            Wait(3)
-            LogInfo("購入確認完了")
+    -- マーケットボードが表示されるまで待機
+    local waitCount = 0
+    while not IsAddonVisible("ItemSearchResult") and waitCount < 10 do
+        if IsAddonVisible("ItemSearch") then
+            LogInfo("アイテム検索画面を確認")
+            break
         end
-        
-        return true
-    else
-        LogWarn("検索結果の表示に失敗")
+        Wait(1)
+        waitCount = waitCount + 1
+    end
+    
+    if waitCount >= 10 then
+        LogWarn("マーケットボードの表示がタイムアウト")
         return false
     end
+    
+    -- 検索実行
+    if IsAddonVisible("ItemSearch") then
+        -- アイテム名で検索
+        LogInfo("地図を検索中: " .. searchTerm)
+        
+        -- 検索ボックスに入力（簡易実装）
+        yield("/send " .. searchTerm)
+        Wait(2)
+        
+        -- 検索実行
+        yield("/click search")
+        Wait(3)
+        
+        -- 検索結果から購入
+        if IsAddonVisible("ItemSearchResult") then
+            LogInfo("検索結果から購入中...")
+            
+            -- 最初の結果を選択
+            yield("/click result1")
+            Wait(2)
+            
+            -- 購入実行
+            yield("/click purchase")
+            Wait(2)
+            
+            -- 購入確認
+            if IsAddonVisible("SelectYesno") then
+                yield("/callback SelectYesno true 0") -- はい
+                Wait(3)
+                LogInfo("地図購入完了")
+                return true
+            end
+        end
+    end
+    
+    LogWarn("地図購入に失敗")
+    return false
 end
 
 -- ExecuteMarketBoardSearchを参考にした改良版
