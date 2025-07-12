@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v4.4.0
+                      Treasure Hunt Automation v4.5.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -24,7 +24,7 @@
   - Teleporter
 
 Author: Claude (based on pot0to's original work)
-Version: 4.4.0
+Version: 4.5.0
 Date: 2025-07-12
 
 ================================================================================
@@ -405,6 +405,40 @@ end
 -- マーケットボードまでの距離チェック
 local function IsNearMarketBoard()
     return IsNearTarget("MARKET_BOARD")
+end
+
+-- フラグからの距離取得（新SND v12.0.0+対応）
+local function GetDistanceToFlag()
+    local success, distance = SafeExecute(function()
+        -- フラグ位置情報を取得
+        if Instances and Instances.Map and Instances.Map.Flag then
+            local flagX = Instances.Map.Flag.MapX
+            local flagY = Instances.Map.Flag.MapY
+            local flagZ = Instances.Map.Flag.MapZ or 0  -- Zがない場合は0
+            
+            -- プレイヤー位置を取得
+            if Entity and Entity.Player and Entity.Player.Position then
+                local playerPos = Entity.Player.Position
+                local dx = flagX - playerPos.X
+                local dy = flagY - playerPos.Y
+                local dz = flagZ - playerPos.Z
+                
+                local distance = math.sqrt(dx * dx + dy * dy + dz * dz)
+                LogDebug("フラグからの距離: " .. string.format("%.2f", distance))
+                return distance
+            end
+        end
+        return 999  -- 情報取得失敗時は大きな値を返す
+    end, "Failed to calculate flag distance")
+    
+    return success and distance or 999
+end
+
+-- フラグ近辺到達チェック
+local function IsNearFlag(targetDistance)
+    targetDistance = targetDistance or 5.0  -- デフォルト5yalm
+    local distance = GetDistanceToFlag()
+    return distance <= targetDistance
 end
 
 -- 現在地チェック関数（新SND v12.0.0+ API対応）
@@ -812,27 +846,19 @@ local function ExecuteMovementPhase()
         return
     end
     
-    -- 移動完了チェック（改善版）
+    -- 移動完了チェック（フラグ距離ベース）
     local isMoving = IsPlayerMoving()
-    local hasReachedFlag = false
+    local isNearFlag = IsNearFlag(5.0)  -- フラグから5yalm以内
+    local flagDistance = GetDistanceToFlag()
     
-    -- フラグ地点到達チェック（vnavmeshステータス確認）
-    SafeExecute(function()
-        -- vnavmeshの移動状態をチェック
-        if HasPlugin("vnavmesh") then
-            -- 移動が停止しているかチェック（簡単な方法）
-            hasReachedFlag = not isMoving
-        else
-            hasReachedFlag = not isMoving
-        end
-    end, "Failed to check flag arrival")
-    
-    if (not isMoving or hasReachedFlag) and not digExecuted then
-        LogInfo("移動完了またはフラグ地点到達。発掘を実行します")
+    -- フラグ地点到達チェック（距離ベース）
+    if isNearFlag and not digExecuted then
+        LogInfo("フラグ地点に到達しました（距離: " .. string.format("%.2f", flagDistance) .. "yalm）")
         
-        -- vnavmesh移動を終了
+        -- vnavmesh移動を停止
         if HasPlugin("vnavmesh") then
             yield("/vnav stop")
+            LogDebug("vnavmesh移動を停止")
             Wait(1)
         end
         
@@ -879,15 +905,15 @@ local function ExecuteMovementPhase()
         return
     end
     
-    -- 移動中の場合は待機（ログ頻度を減らす）
-    if isMoving then
+    -- 移動中の場合は待機（フラグ距離も表示）
+    if isMoving or not isNearFlag then
         if iteration % 5 == 0 then  -- 5秒おきにログ出力
-            LogDebug("移動中... (経過時間: " .. math.floor(os.clock() - phaseStartTime) .. "秒)")
+            LogDebug("移動中... (経過時間: " .. math.floor(os.clock() - phaseStartTime) .. "秒, フラグ距離: " .. string.format("%.2f", flagDistance) .. "yalm)")
         end
         Wait(1)
     else
         -- 移動していないが発掘がまだの場合、少し待つ
-        LogDebug("移動停止。発掘処理を待機中...")
+        LogDebug("移動停止。発掘処理を待機中... (フラグ距離: " .. string.format("%.2f", flagDistance) .. "yalm)")
         Wait(2)
     end
 end
@@ -1058,8 +1084,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v4.4.0 開始")
-    LogInfo("変更点: Excel.GetRow API使用のテレポート先名取得機能実装")
+    LogInfo("Treasure Hunt Automation v4.5.0 開始")
+    LogInfo("変更点: フラグからの距離チェック（5yalm以内）で移動完了判定")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
