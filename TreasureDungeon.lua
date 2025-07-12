@@ -43,12 +43,14 @@ local CONFIG = {
         G17 = {
             itemId = 43557,
             jobId = 19, -- PLD
-            jobName = "ナイト"
+            jobName = "ナイト",
+            searchTerm = "G17"
         },
         G10 = {
             itemId = 17836,
             jobId = 21, -- WAR
-            jobName = "戦士"
+            jobName = "戦士",
+            searchTerm = "G10"
         }
     },
     
@@ -311,6 +313,102 @@ local function CheckPrerequisites()
 end
 
 -- ================================================================================
+-- 地図購入ヘルパー関数
+-- ================================================================================
+
+-- 地図自動購入機能（シンプル版）
+local function ExecuteMapPurchase(mapConfig)
+    LogInfo("マーケットボードで地図を購入中...")
+    
+    -- マーケットボードを開く
+    yield("/marketboard")
+    Wait(5)  -- 表示待機を長めに
+    
+    -- G10地図を直接検索
+    local searchTerm = mapConfig.searchTerm or CONFIG.MAP_TYPE
+    LogInfo("検索キーワード: " .. searchTerm)
+    
+    -- 検索テキストボックスに入力
+    yield("/send " .. searchTerm)
+    Wait(2)
+    
+    -- 検索実行
+    yield("/click search")
+    Wait(3)
+    
+    -- 検索結果から購入
+    if IsAddonVisible("ItemSearchResult") then
+        LogInfo("検索結果を確認")
+        
+        -- 最初の結果をクリック
+        yield("/click result1")
+        Wait(2)
+        
+        -- 購入ボタンをクリック
+        yield("/click purchase")
+        Wait(2)
+        
+        -- 購入確認
+        if IsAddonVisible("SelectYesno") then
+            yield("/callback SelectYesno true 0") -- はい
+            Wait(3)
+            LogInfo("購入確認完了")
+        end
+        
+        return true
+    else
+        LogWarn("検索結果の表示に失敗")
+        return false
+    end
+end
+
+-- ExecuteMarketBoardSearchを参考にした改良版
+local function ExecuteMapPurchaseAdvanced(mapConfig)
+    LogInfo("高度なマーケットボード検索で地図を購入中...")
+    
+    -- マーケットボードを開く
+    yield("/marketboard")
+    Wait(3)
+    
+    -- 検索実行
+    if IsAddonVisible("ItemSearch") then
+        LogInfo("アイテム検索画面を確認")
+        
+        -- アイテムIDで検索
+        yield("/callback ItemSearch true 13 " .. mapConfig.itemId)
+        Wait(2)
+        
+        -- 検索実行
+        yield("/callback ItemSearch true 1")
+        Wait(3)
+        
+        -- 結果から購入
+        if IsAddonVisible("ItemSearchResult") then
+            LogInfo("検索結果を確認")
+            
+            -- 最初の結果を選択
+            yield("/callback ItemSearchResult true 1 0")
+            Wait(1)
+            
+            -- 購入実行
+            yield("/callback ItemSearchResult true 2")
+            Wait(2)
+            
+            -- 購入確認
+            if IsAddonVisible("SelectYesno") then
+                yield("/callback SelectYesno true 0") -- はい
+                Wait(3)
+            end
+            
+            return true
+        end
+    end
+    
+    LogWarn("高度な検索に失敗")
+    return false
+end
+
+-- ================================================================================
 -- フェーズ実装
 -- ================================================================================
 
@@ -354,47 +452,13 @@ local function ExecuteMapPurchasePhase()
     
     LogInfo("地図を購入する必要があります")
     
-    -- マーケットボード自動購入
-    if ExecuteMapPurchase(mapConfig) then
+    -- マーケットボード自動購入（基本版を試してから高度版を試す）
+    if ExecuteMapPurchase(mapConfig) or ExecuteMapPurchaseAdvanced(mapConfig) then
         LogInfo("地図購入完了")
         -- 購入後は次のループで解読処理へ
     else
         LogWarn("地図購入に失敗。手動で準備してください")
         Wait(5)
-    end
-end
-
--- 地図自動購入機能
-local function ExecuteMapPurchase(mapConfig)
-    LogInfo("マーケットボードで地図を購入中...")
-    
-    -- マーケットボードを開く
-    yield("/marketboard")
-    Wait(3)
-    
-    -- 地図を検索
-    if IsAddonVisible("ItemSearchResult") then
-        LogInfo("マーケットボード表示確認")
-        
-        -- 検索実行（簡易実装）
-        yield("/callback ItemSearchResult true 1 " .. mapConfig.itemId)
-        Wait(2)
-        
-        -- 購入実行（最初の結果を購入）
-        yield("/callback ItemSearchResult true 2 0")
-        Wait(2)
-        
-        -- 購入確認
-        if IsAddonVisible("SelectYesno") then
-            yield("/callback SelectYesno true 0") -- はい
-            Wait(3)
-        end
-        
-        LogInfo("購入処理完了")
-        return true
-    else
-        LogWarn("マーケットボードの表示に失敗")
-        return false
     end
 end
 
