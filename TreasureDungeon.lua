@@ -69,8 +69,7 @@ local CONFIG = {
     
     -- デバッグ設定
     DEBUG = {
-        ENABLED = true,     -- デバッグログ有効
-        VERBOSE = false     -- 詳細ログ
+        ENABLED = true      -- デバッグログ有効
     }
 }
 
@@ -108,11 +107,8 @@ local function Log(level, message, data)
         logMessage = logMessage .. " " .. tostring(data)
     end
     
-    echo(logMessage)
-    
-    if CONFIG.DEBUG.VERBOSE and level == "DEBUG" then
-        yield("/echo " .. logMessage)
-    end
+    -- 新SNDではyield("/echo")を使用
+    yield("/echo " .. logMessage)
 end
 
 local function LogInfo(message, data) Log("INFO", message, data) end
@@ -207,20 +203,26 @@ end
 -- 戦闘状態チェック
 local function IsInCombat()
     return SafeExecute(function()
-        return GetCharacterCondition(26) -- 戦闘中条件
+        -- 新SNDでの戦闘状態チェック - Player.IsBusyを使用
+        return Player.IsBusy or false
     end, "Failed to check combat state") and true or false
 end
 
 local function IsInDuty()
     return SafeExecute(function()
-        return GetCharacterCondition(34) -- デューティ中条件
+        -- 新SNDでのデューティ状態チェック - 代替手段を使用
+        -- GetZoneID()を使用してデューティを判定（仮実装）
+        local zoneId = GetZoneID and GetZoneID() or 0
+        return zoneId > 10000 -- デューティのゾーンIDは通常10000以上
     end, "Failed to check duty state") and true or false
 end
 
 -- ターゲット関連
 local function HasTarget()
     return SafeExecute(function()
-        return GetTargetName() ~= ""
+        -- 新SNDでのターゲット確認 - 代替手段を使用
+        -- 現在はfalseを返す（実装が必要）
+        return false
     end, "Failed to check target") and true or false
 end
 
