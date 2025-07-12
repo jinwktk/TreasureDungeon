@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v4.8.0
+                      Treasure Hunt Automation v4.9.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -24,7 +24,7 @@
   - Teleporter
 
 Author: Claude (based on pot0to's original work)
-Version: 4.8.0
+Version: 4.9.0
 Date: 2025-07-12
 
 ================================================================================
@@ -420,28 +420,45 @@ local function IsNearMarketBoard()
     return IsNearTarget("MARKET_BOARD")
 end
 
--- フラグからの距離取得（新SND v12.0.0+対応）
+-- フラグからの距離取得（エラーハンドリング強化版）
 local function GetDistanceToFlag()
     local success, distance = SafeExecute(function()
         -- フラグ位置情報を取得
-        if Instances and Instances.Map and Instances.Map.Flag then
-            local flagX = Instances.Map.Flag.MapX
-            local flagY = Instances.Map.Flag.MapY
-            local flagZ = Instances.Map.Flag.MapZ or 0  -- Zがない場合は0
-            
-            -- プレイヤー位置を取得
-            if Entity and Entity.Player and Entity.Player.Position then
-                local playerPos = Entity.Player.Position
-                local dx = flagX - playerPos.X
-                local dy = flagY - playerPos.Y
-                local dz = flagZ - playerPos.Z
-                
-                local distance = math.sqrt(dx * dx + dy * dy + dz * dz)
-                LogDebug("フラグからの距離: " .. string.format("%.2f", distance))
-                return distance
-            end
+        if not (Instances and Instances.Map and Instances.Map.Flag) then
+            LogDebug("フラグ情報が利用できません")
+            return 999
         end
-        return 999  -- 情報取得失敗時は大きな値を返す
+        
+        local flagX = Instances.Map.Flag.MapX
+        local flagY = Instances.Map.Flag.MapY
+        local flagZ = Instances.Map.Flag.MapZ
+        
+        -- フラグ座標が取得できない場合
+        if not flagX or not flagY then
+            LogDebug("フラグ座標が取得できません (MapX: " .. tostring(flagX) .. ", MapY: " .. tostring(flagY) .. ")")
+            return 999
+        end
+        
+        -- プレイヤー位置を取得
+        if not (Entity and Entity.Player and Entity.Player.Position) then
+            LogDebug("プレイヤー位置が取得できません")
+            return 999
+        end
+        
+        local playerPos = Entity.Player.Position
+        if not (playerPos.X and playerPos.Y and playerPos.Z) then
+            LogDebug("プレイヤー座標が不完全です")
+            return 999
+        end
+        
+        -- 距離計算（Z座標はオプション）
+        local dx = flagX - playerPos.X
+        local dy = flagY - playerPos.Y
+        local dz = (flagZ or 0) - playerPos.Z
+        
+        local distance = math.sqrt(dx * dx + dy * dy + dz * dz)
+        LogDebug("フラグからの距離: " .. string.format("%.2f", distance))
+        return distance
     end, "Failed to calculate flag distance")
     
     return success and distance or 999
@@ -900,9 +917,16 @@ local function ExecuteMovementPhase()
     if not movementStarted then
         LogInfo("宝の場所への移動を開始します")
         if HasPlugin("vnavmesh") then
+            -- 飛行マウント召喚
+            LogInfo("飛行マウントを召喚中...")
+            yield("/mount 高機動型パワーローダー")
+            Wait(3)  -- マウント召喚完了待機
+            
+            -- vnavmeshで飛行移動開始
+            LogInfo("vnavmeshで飛行移動開始...")
             yield("/vnav flyflag")
             movementStarted = true
-            LogDebug("vnavmeshで移動開始")
+            LogDebug("vnavmesh飛行移動開始")
         else
             LogWarn("vnavmeshが利用できません。手動で移動してください")
             movementStarted = true  -- 手動移動待機
@@ -1149,8 +1173,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v4.8.0 開始")
-    LogInfo("変更点: Svc.ClientState.TerritoryType使用のGetZoneID()関数実装")
+    LogInfo("Treasure Hunt Automation v4.9.0 開始")
+    LogInfo("変更点: フラグ距離エラー修正・飛行マウント召喚機能追加")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
