@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v3.2.6
+                      Treasure Hunt Automation v4.0.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -24,7 +24,7 @@
   - Teleporter
 
 Author: Claude (based on pot0to's original work)
-Version: 3.2.6
+Version: 4.0.0
 Date: 2025-07-12
 
 ================================================================================
@@ -178,23 +178,50 @@ end
 -- 新SNDモジュールベースAPI関数
 -- ================================================================================
 
--- プレイヤー状態チェック
+-- プレイヤー状態チェック（新SND v12.0.0+対応）
 local function IsPlayerAvailable()
-    return SafeExecute(function()
-        return Player.Available and not Player.IsBusy
-    end, "Failed to check player availability") and true or false
+    local success, result = SafeExecute(function()
+        -- 新SND API: Player.Available プロパティ
+        if Player and Player.Available ~= nil then
+            return Player.Available and not (Player.IsBusy or false)
+        -- フォールバック: IsPlayerAvailable() 関数
+        elseif IsPlayerAvailable then
+            return IsPlayerAvailable()
+        else
+            return true  -- デフォルトで利用可能とする
+        end
+    end, "Failed to check player availability")
+    return success and result or false
 end
 
 local function IsPlayerMoving()
-    return SafeExecute(function()
-        return Player.IsMoving
-    end, "Failed to check player movement") and true or false
+    local success, result = SafeExecute(function()
+        -- 新SND API: Player.IsMoving プロパティ
+        if Player and Player.IsMoving ~= nil then
+            return Player.IsMoving
+        -- フォールバック: IsPlayerMoving() 関数
+        elseif IsPlayerMoving then
+            return IsPlayerMoving()
+        else
+            return false  -- デフォルトで移動していないとする
+        end
+    end, "Failed to check player movement")
+    return success and result or false
 end
 
 local function GetCurrentJob()
-    return SafeExecute(function()
-        return Player.Job.Id
-    end, "Failed to get current job") and Player.Job.Id or 0
+    local success, result = SafeExecute(function()
+        -- 新SND API: Player.Job.Id プロパティ
+        if Player and Player.Job and Player.Job.Id then
+            return Player.Job.Id
+        -- フォールバック: GetClassJobId() 関数
+        elseif GetClassJobId then
+            return GetClassJobId()
+        else
+            return 0  -- 不明な場合は0を返す
+        end
+    end, "Failed to get current job")
+    return success and result or 0
 end
 
 -- インベントリ管理
@@ -341,19 +368,27 @@ end
 -- 地図購入ヘルパー関数
 -- ================================================================================
 
--- ターゲットまでの距離計算（手動計算版）
+-- ターゲットまでの距離計算（新SND v12.0.0+対応）
 local function GetDistanceToTarget()
     local success, distance = SafeExecute(function()
-        if Entity and Entity.Player and Entity.Target and Entity.Player.Position and Entity.Target.Position then
+        -- 新SND API: GetDistanceToTarget() 関数使用
+        if GetDistanceToTarget then
+            return GetDistanceToTarget()
+        -- フォールバック: GetTargetDistance() 関数
+        elseif GetTargetDistance then
+            return GetTargetDistance()
+        -- 手動計算（最後の手段）
+        elseif Entity and Entity.Player and Entity.Target then
             local player = Entity.Player.Position
             local target = Entity.Target.Position
-            local dx = target.X - player.X
-            local dy = target.Y - player.Y
-            local dz = target.Z - player.Z
-            return math.sqrt(dx * dx + dy * dy + dz * dz)
-        else
-            return 999
+            if player and target then
+                local dx = target.X - player.X
+                local dy = target.Y - player.Y
+                local dz = target.Z - player.Z
+                return math.sqrt(dx * dx + dy * dy + dz * dz)
+            end
         end
+        return 999
     end, "Failed to calculate target distance")
     return success and distance or 999
 end
@@ -372,13 +407,17 @@ local function IsNearMarketBoard()
     return IsNearTarget("MARKET_BOARD")
 end
 
--- 現在地チェック関数（新SND API対応）
+-- 現在地チェック関数（新SND v12.0.0+ API対応）
 local function IsInLimsa()
-    -- 新SND v12.0.0+でのゾーン情報取得（正しいAPI使用）
+    -- 新SND v12.0.0+での正しいゾーン情報取得
     local success, zoneId = SafeExecute(function()
-        -- 正しいAPI: Svc.ClientState.TerritoryType
-        if Svc and Svc.ClientState and Svc.ClientState.TerritoryType then
-            return Svc.ClientState.TerritoryType
+        -- 最新SND API: GetZoneID() 関数を使用
+        if GetZoneID then
+            return GetZoneID()
+        -- フォールバック: Player.Zoneプロパティ
+        elseif Player and Player.Zone then
+            return Player.Zone
+        -- フォールバック: yield("/zoneid")の結果解析（最後の手段）
         else
             return 0
         end
@@ -388,7 +427,7 @@ local function IsInLimsa()
     
     -- リムサ・ロミンサのゾーンID: 129
     if success and zoneId == 129 then
-        LogDebug("Svc.ClientState.TerritoryTypeでリムサ・ロミンサを確認")
+        LogDebug("リムサ・ロミンサにいることを確認 (ゾーンID: 129)")
         return true
     end
     
@@ -971,8 +1010,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v3.2.6 開始")
-    LogInfo("変更点: Instances.Map.Flag.TerritoryId使用の自動テレポート")
+    LogInfo("Treasure Hunt Automation v4.0.0 開始")
+    LogInfo("変更点: 新SND v12.0.0+完全対応・API互換性向上・ゾーン検出最適化")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
