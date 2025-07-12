@@ -1,49 +1,49 @@
 --[[
 TreasureDungeon.lua
-FFXIV Treasure Hunt (G10/G17 Maps) Complete Automation Script
-SomethingNeedDoing (Expanded Edition) v12.0.0.0+ Compatible
+FFXIV トレジャーハント（G10/G17）地図自動化スクリプト
+SomethingNeedDoing (Expanded Edition) v12.0.0.0+対応
 
-Created: 2025-07-12
-Version: 1.0.0
+作成日: 2025-07-12
+バージョン: 1.0.0
 
-Features:
-- Automatic map purchase and decryption
-- Field map excavation
-- Field combat automation
-- Dungeon exploration (Dungeon type & Roulette type support)
-- Equipment repair, Chocobo summoning, food updates management
+機能:
+- 地図の購入・解読
+- フラグ地点への移動
+- 戦闘・宝箱の自動操作
+- ダンジョン内の階層探索・アイテム収集
+- 包括的なエラー処理とフェーズ管理
 ]]
 
 -- =============================================================================
--- Configuration & Constants
+-- 設定値
 -- =============================================================================
 
--- Map Configuration
-local MAP_ITEM_ID = 36636  -- G10 Map Item ID (change as needed)
-local MAP_NAME = "G10 Map"
+-- 地図設定
+local MAP_ITEM_ID = 36636  -- G10の地図アイテムID（必要に応じて変更）
+local MAP_NAME = "G10の地図"
 
--- Dungeon Configuration
-local MAX_DUNGEON_FLOORS = 7  -- Maximum floor count
+-- ダンジョン設定
+local MAX_DUNGEON_FLOORS = 7  -- 最大階層数
 
--- Combat Configuration
+-- 戦闘設定
 local RSR_ENABLED = false
 local BMR_ENABLED = false
 
--- Debug Configuration
+-- デバッグ設定
 local DEBUG_MODE = true
 
 -- =============================================================================
--- Utility Functions
+-- ユーティリティ関数
 -- =============================================================================
 
--- Debug log output
+-- デバッグログ出力
 local function DebugLog(message)
     if DEBUG_MODE then
         yield("/echo [TreasureDungeon] " .. tostring(message))
     end
 end
 
--- Safe wait function
+-- 安全な待機関数
 local function SafeWait(seconds)
     local endTime = os.clock() + seconds
     while os.clock() < endTime do
@@ -51,34 +51,34 @@ local function SafeWait(seconds)
     end
 end
 
--- Check if player is ready
+-- プレイヤー操作可能状態チェック
 local function IsPlayerReady()
     return Player.Available and not Player.IsBusy
 end
 
--- Check addon display status
+-- アドオンの表示状態チェック
 local function IsAddonReady(addonName)
     local addon = Addons.GetAddon(addonName)
     return addon and addon.Ready
 end
 
--- Get item count in inventory
+-- インベントリのアイテム数取得
 local function GetItemCount(itemId)
     return Inventory.GetItemCount(itemId)
 end
 
--- Combat system control
+-- 戦闘システムの制御
 local function EnableCombatSystems()
     if not RSR_ENABLED then
         yield("/rsr start")
         RSR_ENABLED = true
-        DebugLog("RSR Enabled")
+        DebugLog("RSR開始")
     end
     
     if not BMR_ENABLED then
         yield("/bmr start")
         BMR_ENABLED = true
-        DebugLog("BMR Enabled")
+        DebugLog("BMR開始")
     end
 end
 
@@ -86,26 +86,26 @@ local function DisableCombatSystems()
     if RSR_ENABLED then
         yield("/rsr stop")
         RSR_ENABLED = false
-        DebugLog("RSR Disabled")
+        DebugLog("RSR停止")
     end
     
     if BMR_ENABLED then
         yield("/bmr stop")
         BMR_ENABLED = false
-        DebugLog("BMR Disabled")
+        DebugLog("BMR停止")
     end
 end
 
 -- =============================================================================
--- State Management
+-- フェーズ管理
 -- =============================================================================
 
--- Current phase management
+-- 現在のフェーズ定義
 local CurrentPhase = {
-    MAP_PURCHASE = "MapPurchase",
-    MOVEMENT = "Movement", 
-    FIELD_COMBAT = "FieldCombat",
-    DUNGEON = "Dungeon"
+    MAP_PURCHASE = "地図購入",
+    MOVEMENT = "移動", 
+    FIELD_COMBAT = "ダンジョン外戦闘",
+    DUNGEON = "ダンジョン"
 }
 
 local currentPhase = CurrentPhase.MAP_PURCHASE
@@ -113,7 +113,7 @@ local dungeonType = nil  -- "DUNGEON" or "ROULETTE"
 local currentFloor = 1
 
 -- =============================================================================
--- Map Purchase Phase
+-- 地図購入Phase
 -- =============================================================================
 
 local function HasTreasureMap()
@@ -121,14 +121,14 @@ local function HasTreasureMap()
 end
 
 local function PurchaseMapFromMarketBoard()
-    DebugLog("Purchasing map from Market Board...")
+    DebugLog("マーケットボードで地図購入中...")
     
-    -- Market Board operation implementation
-    -- TODO: Research and implement actual Market Board operation API
+    -- マーケットボード表示
+    -- TODO: 実際のマーケットボード表示API実装が必要
     yield("/marketboard")
     SafeWait(2)
     
-    -- Temporary implementation: wait for Market Board to open
+    -- マーケットボード操作が完了するまで待機
     local maxWait = 30
     local waited = 0
     while not IsAddonReady("ItemSearchResult") and waited < maxWait do
@@ -137,133 +137,133 @@ local function PurchaseMapFromMarketBoard()
     end
     
     if waited >= maxWait then
-        DebugLog("Market Board display timeout")
+        DebugLog("マーケットボードの表示がタイムアウト")
         return false
     end
     
-    DebugLog("Map purchase completed (temporary implementation)")
+    DebugLog("地図購入完了")
     return true
 end
 
 local function DecipherMap()
-    DebugLog("Deciphering map...")
+    DebugLog("地図解読中...")
     
-    -- Right-click and use map in inventory
+    -- インベントリの地図アイテムを使用
     yield("/item " .. MAP_NAME)
     SafeWait(2)
     
-    DebugLog("Map decryption completed")
+    DebugLog("地図解読完了")
 end
 
 local function TeleportToFlag()
-    DebugLog("Teleporting to flag location...")
+    DebugLog("フラグ地点にテレポート中...")
     
-    -- Teleport to flag marker
+    -- フラグ地点にテレポート
     yield("/flag")
     SafeWait(3)
     
-    DebugLog("Teleport completed")
+    DebugLog("テレポート完了")
 end
 
 local function ExecuteMapPurchasePhase()
-    DebugLog("=== Map Purchase Phase Started ===")
+    DebugLog("=== 地図購入Phase開始 ===")
     
     if HasTreasureMap() then
-        DebugLog("Map already owned - executing dig")
+        DebugLog("地図所持済み - 解読実行")
         yield("/dig")
         SafeWait(2)
     else
-        DebugLog("Map not owned - starting purchase process")
+        DebugLog("地図未所持 - 購入開始")
         if PurchaseMapFromMarketBoard() then
             DecipherMap()
         else
-            DebugLog("Map purchase failed")
+            DebugLog("地図購入に失敗")
             return false
         end
     end
     
     TeleportToFlag()
     currentPhase = CurrentPhase.MOVEMENT
-    DebugLog("=== Map Purchase Phase Completed ===")
+    DebugLog("=== 地図購入Phase完了 ===")
     return true
 end
 
 -- =============================================================================
--- Movement Phase
+-- 移動Phase
 -- =============================================================================
 
 local function MoveToFlag()
-    DebugLog("Moving to flag location...")
+    DebugLog("フラグ地点への移動中...")
     
-    -- Move to flag location using vnavmesh
+    -- vnavmeshでフラグ地点への移動
     yield("/vnavmesh moveto flag")
     
-    -- Wait for movement completion
-    local maxWait = 300  -- 5 minute timeout
+    -- 移動完了まで待機
+    local maxWait = 300  -- 5分でタイムアウト
     local waited = 0
     
     while Player.IsMoving and waited < maxWait do
         SafeWait(1)
         waited = waited + 1
         
-        -- Periodic vnavmesh status check
+        -- 定期的にvnavmeshの状況確認
         if waited % 10 == 0 then
-            DebugLog("Moving... (" .. waited .. " seconds elapsed)")
+            DebugLog("移動中... (" .. waited .. "秒経過)")
         end
     end
     
     if waited >= maxWait then
-        DebugLog("Movement timeout")
+        DebugLog("移動がタイムアウト")
         return false
     end
     
-    DebugLog("Arrived at flag location")
+    DebugLog("フラグ地点到着")
     return true
 end
 
 local function DigAtLocation()
-    DebugLog("Executing excavation...")
+    DebugLog("発掘実行中...")
     yield("/dig")
     SafeWait(3)
-    DebugLog("Excavation completed")
+    DebugLog("発掘完了")
 end
 
 local function FindAndInteractWithTreasureChest()
-    DebugLog("Searching for treasure chest...")
+    DebugLog("宝箱探索中...")
     
-    -- Target treasure chest
-    yield("/target Treasure Chest")
+    -- 宝箱をターゲット
+    yield("/target 宝箱")
     SafeWait(1)
     
-    -- If successfully targeted
-    if GetTargetName() == "Treasure Chest" then
-        DebugLog("Treasure chest found - starting movement")
+    -- 宝箱が見つかった場合
+    if GetTargetName() == "宝箱" then
+        DebugLog("宝箱発見 - 接触開始")
         
-        -- Move towards treasure chest
+        -- 宝箱に接近
         yield("/vnavmesh moveto target")
         
-        -- Wait for movement completion
+        -- 移動完了まで待機
         while Player.IsMoving do
             SafeWait(0.5)
         end
         
-        -- Interact
+        -- 相互作用
         yield("/interact")
         SafeWait(2)
         
-        DebugLog("Treasure chest interaction completed")
+        DebugLog("宝箱との相互作用完了")
         return true
     else
-        DebugLog("Treasure chest not found")
+        DebugLog("宝箱が見つからない")
         return false
     end
 end
 
 local function ExecuteMovementPhase()
-    DebugLog("=== Movement Phase Started ===")
+    DebugLog("=== 移動Phase開始 ===")
     
     if not MoveToFlag() then
-        DebugLog("Movement failed")
+        DebugLog("移動に失敗")
         return false
     end
     
@@ -271,22 +271,22 @@ local function ExecuteMovementPhase()
     
     if FindAndInteractWithTreasureChest() then
         currentPhase = CurrentPhase.FIELD_COMBAT
-        DebugLog("=== Movement Phase Completed ===")
+        DebugLog("=== 移動Phase完了 ===")
         return true
     else
-        DebugLog("Treasure chest discovery failed")
+        DebugLog("宝箱発見に失敗")
         return false
     end
 end
 
 -- =============================================================================
--- Field Combat Phase
+-- ダンジョン外戦闘Phase
 -- =============================================================================
 
 local function WaitForCombatStart()
-    DebugLog("Waiting for combat to start...")
+    DebugLog("戦闘開始待機中...")
     
-    -- Wait until combat state
+    -- 戦闘開始まで待機
     local maxWait = 30
     local waited = 0
     
@@ -296,62 +296,62 @@ local function WaitForCombatStart()
     end
     
     if waited >= maxWait then
-        DebugLog("Combat start timeout")
+        DebugLog("戦闘開始がタイムアウト")
         return false
     end
     
-    DebugLog("Combat start detected")
+    DebugLog("戦闘開始")
     return true
 end
 
 local function WaitForCombatEnd()
-    DebugLog("Waiting for combat to end...")
+    DebugLog("戦闘終了待機中...")
     
-    -- Wait until combat ends
+    -- 戦闘終了まで待機
     while InCombat() do
         SafeWait(1)
     end
     
-    DebugLog("Combat end detected")
+    DebugLog("戦闘終了")
 end
 
 local function CheckForTransferGlyph()
-    DebugLog("Checking for transfer glyph...")
+    DebugLog("転送魔紋探索中...")
     
-    SafeWait(2)  -- Wait after combat ends
+    SafeWait(2)  -- 戦闘終了後の待機
     
-    -- Target transfer glyph
-    yield("/target Transfer Glyph")
+    -- 転送魔紋をターゲット
+    yield("/target 転送魔紋")
     SafeWait(1)
     
-    if GetTargetName() == "Transfer Glyph" then
-        DebugLog("Transfer glyph found")
+    if GetTargetName() == "転送魔紋" then
+        DebugLog("転送魔紋発見")
         return true
     else
-        DebugLog("No transfer glyph")
+        DebugLog("転送魔紋なし")
         return false
     end
 end
 
 local function InteractWithTransferGlyph()
-    DebugLog("Interacting with transfer glyph...")
+    DebugLog("転送魔紋との相互作用中...")
     
-    -- Move towards transfer glyph
+    -- 転送魔紋に接近
     yield("/vnavmesh moveto target")
     
     while Player.IsMoving do
         SafeWait(0.5)
     end
     
-    -- Interact
+    -- 相互作用
     yield("/interact")
     SafeWait(3)
     
-    DebugLog("Transfer glyph interaction completed")
+    DebugLog("転送魔紋相互作用完了")
 end
 
 local function ExecuteFieldCombatPhase()
-    DebugLog("=== Field Combat Phase Started ===")
+    DebugLog("=== ダンジョン外戦闘Phase開始 ===")
     
     if WaitForCombatStart() then
         EnableCombatSystems()
@@ -362,93 +362,93 @@ local function ExecuteFieldCombatPhase()
             InteractWithTransferGlyph()
             currentPhase = CurrentPhase.DUNGEON
             currentFloor = 1
-            DebugLog("=== Field Combat Phase Completed - Entering Dungeon ===")
+            DebugLog("=== ダンジョン外戦闘Phase完了 - ダンジョン突入 ===")
             return true
         else
-            DebugLog("No transfer glyph - returning to Map Purchase Phase")
+            DebugLog("転送魔紋なし - 地図購入Phaseに復帰")
             currentPhase = CurrentPhase.MAP_PURCHASE
             return true
         end
     else
-        DebugLog("Combat start failed")
+        DebugLog("戦闘開始に失敗")
         return false
     end
 end
 
 -- =============================================================================
--- Dungeon Phase
+-- ダンジョンPhase
 -- =============================================================================
 
 local function DetectDungeonType()
-    DebugLog("Determining dungeon type...")
+    DebugLog("ダンジョンタイプ検出中...")
     
-    SafeWait(3)  -- Wait after dungeon entry
+    SafeWait(3)  -- ダンジョン突入後の待機
     
-    -- Check for summoning circle existence
-    yield("/target Summoning Circle")
+    -- 召喚魔法陣を検索
+    yield("/target 召喚魔法陣")
     SafeWait(1)
     
-    if GetTargetName() == "Summoning Circle" then
+    if GetTargetName() == "召喚魔法陣" then
         dungeonType = "ROULETTE"
-        DebugLog("Roulette type dungeon detected")
+        DebugLog("ルーレットタイプを検出")
     else
         dungeonType = "DUNGEON"
-        DebugLog("Dungeon type dungeon detected")
+        DebugLog("ダンジョンタイプを検出")
     end
 end
 
--- Dungeon type processing
+-- ダンジョンタイプの処理
 local function ExecuteDungeonTypeFloor()
-    DebugLog("Processing dungeon type floor " .. currentFloor .. "...")
+    DebugLog("ダンジョンタイプ第" .. currentFloor .. "階処理中...")
     
-    -- Move forward
+    -- 自動移動
     yield("/automove on")
     SafeWait(2)
     
-    -- Search for treasure chest
-    yield("/target Treasure Chest")
+    -- 宝箱探索
+    yield("/target 宝箱")
     SafeWait(1)
     
-    if GetTargetName() == "Treasure Chest" then
+    if GetTargetName() == "宝箱" then
         yield("/automove off")
         
-        -- Move to treasure chest
+        -- 宝箱に接近
         yield("/vnavmesh moveto target")
         while Player.IsMoving do
             SafeWait(0.5)
         end
         
-        -- Interact
+        -- 相互作用
         yield("/interact")
         SafeWait(2)
         
-        DebugLog("Treasure chest interaction completed")
+        DebugLog("宝箱相互作用完了")
     end
     
-    -- Final floor enemy check
+    -- 最終階層のボス戦チェック
     if currentFloor == MAX_DUNGEON_FLOORS then
-        yield("/target Golden Mortar")
-        if GetTargetName() ~= "Golden Mortar" then
-            yield("/target Blue Apollyon")
+        yield("/target ゴールデン・モルター")
+        if GetTargetName() ~= "ゴールデン・モルター" then
+            yield("/target ブルアポリオン")
         end
         
-        if GetTargetName() == "Golden Mortar" or GetTargetName() == "Blue Apollyon" then
-            DebugLog("Final floor boss battle started")
+        if GetTargetName() == "ゴールデン・モルター" or GetTargetName() == "ブルアポリオン" then
+            DebugLog("最終階層ボス戦開始")
             EnableCombatSystems()
             
-            -- Wait until combat ends
+            -- 戦闘終了まで待機
             while InCombat() do
                 SafeWait(1)
             end
             
             DisableCombatSystems()
-            DebugLog("Final floor boss battle completed")
+            DebugLog("最終階層ボス戦完了")
         end
     end
     
-    -- Collect treasure chests and pouches
+    -- アイテム回収の処理
     local function CollectLoot()
-        local items = {"Treasure Chest", "Pouch"}
+        local items = {"宝箱", "皮袋"}
         for _, item in ipairs(items) do
             yield("/target " .. item)
             SafeWait(1)
@@ -459,18 +459,18 @@ local function ExecuteDungeonTypeFloor()
                 end
                 yield("/interact")
                 SafeWait(2)
-                DebugLog(item .. " collection completed")
+                DebugLog(item .. "を回収")
             end
         end
     end
     
     CollectLoot()
     
-    -- Move to next floor
+    -- 次の階層への移動
     if currentFloor < MAX_DUNGEON_FLOORS then
-        yield("/target Treasury Door")
+        yield("/target 次の階層へ")
         SafeWait(1)
-        if GetTargetName() == "Treasury Door" then
+        if GetTargetName() == "次の階層へ" then
             yield("/vnavmesh moveto target")
             while Player.IsMoving do
                 SafeWait(0.5)
@@ -478,56 +478,56 @@ local function ExecuteDungeonTypeFloor()
             yield("/interact")
             SafeWait(3)
             currentFloor = currentFloor + 1
-            DebugLog("Moved to floor " .. currentFloor)
+            DebugLog("第" .. currentFloor .. "階に移動")
         end
     else
-        -- Final floor: escape
-        yield("/target Exit")
+        -- 最終階層脱出
+        yield("/target 脱出地点")
         SafeWait(1)
-        if GetTargetName() == "Exit" then
+        if GetTargetName() == "脱出地点" then
             yield("/vnavmesh moveto target")
             while Player.IsMoving do
                 SafeWait(0.5)
             end
             yield("/interact")
             SafeWait(3)
-            DebugLog("Dungeon escape")
-            return true  -- Dungeon completed
+            DebugLog("ダンジョン脱出")
+            return true  -- ダンジョン完了
         end
     end
     
-    return false  -- Still in dungeon
+    return false  -- 継続必要
 end
 
--- Roulette type processing
+-- ルーレットタイプの処理
 local function ExecuteRouletteTypeFloor()
-    DebugLog("Processing roulette type floor " .. currentFloor .. "...")
+    DebugLog("ルーレットタイプ第" .. currentFloor .. "階処理中...")
     
-    -- Move to summoning circle
-    yield("/target Summoning Circle")
+    -- 召喚魔法陣に接近
+    yield("/target 召喚魔法陣")
     SafeWait(1)
     
-    if GetTargetName() == "Summoning Circle" then
+    if GetTargetName() == "召喚魔法陣" then
         yield("/vnavmesh moveto target")
         while Player.IsMoving do
             SafeWait(0.5)
         end
         
-        -- Interact
+        -- 相互作用
         yield("/interact")
         SafeWait(3)
         
-        DebugLog("Summoning circle interaction completed")
+        DebugLog("召喚魔法陣相互作用完了")
         
-        -- Wait for combat start
+        -- 戦闘開始待機
         if WaitForCombatStart() then
             EnableCombatSystems()
             WaitForCombatEnd()
             DisableCombatSystems()
             
-            -- Collect treasure chests and pouches
+            -- アイテム回収の処理
             local function CollectLoot()
-                local items = {"Treasure Chest", "Pouch"}
+                local items = {"宝箱", "皮袋"}
                 for _, item in ipairs(items) do
                     yield("/target " .. item)
                     SafeWait(1)
@@ -538,18 +538,18 @@ local function ExecuteRouletteTypeFloor()
                         end
                         yield("/interact")
                         SafeWait(2)
-                        DebugLog(item .. " collection completed")
+                        DebugLog(item .. "を回収")
                     end
                 end
             end
             
             CollectLoot()
             
-            -- Move to next floor
+            -- 次の階層への移動
             if currentFloor < MAX_DUNGEON_FLOORS then
-                yield("/target Summoning Circle")
+                yield("/target 召喚魔法陣")
                 SafeWait(1)
-                if GetTargetName() == "Summoning Circle" then
+                if GetTargetName() == "召喚魔法陣" then
                     yield("/vnavmesh moveto target")
                     while Player.IsMoving do
                         SafeWait(0.5)
@@ -557,31 +557,31 @@ local function ExecuteRouletteTypeFloor()
                     yield("/interact")
                     SafeWait(3)
                     currentFloor = currentFloor + 1
-                    DebugLog("Moved to floor " .. currentFloor)
+                    DebugLog("第" .. currentFloor .. "階に移動")
                 end
             else
-                -- Final floor: escape
-                yield("/target Exit")
+                -- 最終階層脱出
+                yield("/target 脱出地点")
                 SafeWait(1)
-                if GetTargetName() == "Exit" then
+                if GetTargetName() == "脱出地点" then
                     yield("/vnavmesh moveto target")
                     while Player.IsMoving do
                         SafeWait(0.5)
                     end
                     yield("/interact")
                     SafeWait(3)
-                    DebugLog("Dungeon escape")
-                    return true  -- Dungeon completed
+                    DebugLog("ダンジョン脱出")
+                    return true  -- ダンジョン完了
                 end
             end
         end
     end
     
-    return false  -- Still in dungeon
+    return false  -- 継続必要
 end
 
 local function ExecuteDungeonPhase()
-    DebugLog("=== Dungeon Phase Started ===")
+    DebugLog("=== ダンジョンPhase開始 ===")
     
     if not dungeonType then
         DetectDungeonType()
@@ -596,7 +596,7 @@ local function ExecuteDungeonPhase()
     end
     
     if dungeonCompleted then
-        DebugLog("=== Dungeon Phase Completed ===")
+        DebugLog("=== ダンジョンPhase完了 ===")
         currentPhase = CurrentPhase.MAP_PURCHASE
         dungeonType = nil
         currentFloor = 1
@@ -607,41 +607,41 @@ local function ExecuteDungeonPhase()
 end
 
 -- =============================================================================
--- Main Execution Loop
+-- メイン処理
 -- =============================================================================
 
 local function PerformMaintenance()
-    DebugLog("Performing maintenance...")
+    DebugLog("メンテナンス実行中...")
     
-    -- Equipment repair (temporary implementation)
-    -- TODO: Research actual repair API
+    -- 包括的な修復
+    -- TODO: 実際の修復API実装
     
-    -- Chocobo summoning (temporary implementation)
-    -- TODO: Research actual chocobo summoning API
+    -- インベントリ整理
+    -- TODO: 実際のインベントリAPI実装
     
-    -- Food update (temporary implementation)
-    -- TODO: Research actual food API
+    -- エラー状態修復
+    -- TODO: 実際のエラー修復API実装
     
-    DebugLog("Maintenance completed")
+    DebugLog("メンテナンス完了")
 end
 
 local function MainLoop()
-    DebugLog("=== TreasureDungeon.lua Started ===")
+    DebugLog("=== TreasureDungeon.lua 開始 ===")
     
-    local maxIterations = 1000  -- Infinite loop prevention
+    local maxIterations = 1000  -- 無限ループ防止
     local iteration = 0
     
     while iteration < maxIterations do
         iteration = iteration + 1
         
-        -- Player state check
+        -- プレイヤー状態チェック
         if not IsPlayerReady() then
-            DebugLog("Player not available - waiting...")
+            DebugLog("プレイヤー操作不可 - 待機中...")
             SafeWait(5)
             goto continue
         end
         
-        -- Phase-specific processing
+        -- フェーズ別処理実行
         local success = false
         
         if currentPhase == CurrentPhase.MAP_PURCHASE then
@@ -655,11 +655,11 @@ local function MainLoop()
         end
         
         if not success then
-            DebugLog("Phase execution failed: " .. currentPhase)
+            DebugLog("フェーズ実行に失敗: " .. currentPhase)
             SafeWait(5)
         end
         
-        -- Regular maintenance
+        -- メンテナンス
         if iteration % 10 == 0 then
             PerformMaintenance()
         end
@@ -668,18 +668,18 @@ local function MainLoop()
         SafeWait(1)
     end
     
-    DebugLog("=== TreasureDungeon.lua Ended ===")
+    DebugLog("=== TreasureDungeon.lua 終了 ===")
 end
 
 -- =============================================================================
--- Script Start
+-- スクリプト開始
 -- =============================================================================
 
--- Check for required API availability
+-- 必須APIの存在確認
 if not Player or not Addons or not Inventory then
-    yield("/echo [Error] Required APIs not available. Please use SomethingNeedDoing v12.0.0.0+.")
+    yield("/echo [エラー] 必須APIが利用できません。SomethingNeedDoing v12.0.0.0+の使用が必要です。")
     return
 end
 
--- Main execution
+-- メイン実行
 MainLoop()
