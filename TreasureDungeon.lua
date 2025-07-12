@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v4.2.0
+                      Treasure Hunt Automation v4.3.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -24,7 +24,7 @@
   - Teleporter
 
 Author: Claude (based on pot0to's original work)
-Version: 4.2.0
+Version: 4.3.0
 Date: 2025-07-12
 
 ================================================================================
@@ -711,56 +711,15 @@ local function ExecuteMapPurchasePhase()
         yield("/gaction ディサイファー")
         Wait(3)
         
-        -- フラグ地点へのテレポート（自動・手動併用方式）
+        -- フラグ地点へのテレポート（/echo <flag>コマンド使用）
         LogInfo("フラグ地点にテレポートします")
         
-        -- 自動テレポート試行
-        local teleportSuccess = SafeExecute(function()
-            if Instances and Instances.Map and Instances.Map.Flag and Instances.Map.Flag.TerritoryId then
-                local flagZoneId = Instances.Map.Flag.TerritoryId
-                LogInfo("フラグゾーンID: " .. tostring(flagZoneId))
-                
-                -- GetAetheryteName APIを使用してエーテライト名を取得
-                if GetAetherytesInZone and GetAetheryteName then
-                    local aetheryteList = GetAetherytesInZone(flagZoneId)
-                    if aetheryteList and #aetheryteList > 0 then
-                        local aetheryteName = GetAetheryteName(aetheryteList[1])
-                        if aetheryteName and aetheryteName ~= "" then
-                            LogInfo("取得したエーテライト名: " .. tostring(aetheryteName))
-                            
-                            -- 自動テレポート実行
-                            yield("/tp " .. tostring(aetheryteName))
-                            LogInfo("自動テレポート実行: " .. tostring(aetheryteName))
-                            return true
-                        else
-                            LogWarn("エーテライト名の取得に失敗")
-                        end
-                    else
-                        LogWarn("指定ゾーンにエーテライトが見つかりません")
-                    end
-                else
-                    LogWarn("GetAetherytesInZone または GetAetheryteName API が利用できません")
-                end
-            else
-                LogWarn("フラグ情報が取得できません")
-            end
-            return false
-        end, "Failed to execute auto teleport")
+        -- /echo <flag>コマンドを使用したシンプルテレポート
+        LogInfo("/echo <flag>コマンドでフラグ地点にテレポート実行")
+        yield("/echo <flag>")
         
-        if teleportSuccess then
-            LogInfo("自動テレポート完了")
-            Wait(8)  -- テレポート完了待機
-        else
-            -- 自動テレポート失敗時は手動指示
-            LogInfo("自動テレポートに失敗。手動テレポートを実行してください")
-            LogInfo("==== 手動テレポート手順 ====")
-            LogInfo("1. マップを開く（Mキー）")
-            LogInfo("2. 赤いフラグマーカーを右クリック")
-            LogInfo("3. 'テレポート' を選択")
-            LogInfo("4. テレポート完了まで待機...")
-            LogInfo("========================")
-            Wait(12)  -- 手動操作のための時間
-        end
+        LogInfo("フラグテレポート実行完了")
+        Wait(8)  -- テレポート完了待機
         
         ChangePhase("MOVEMENT", "地図解読・テレポート完了")
         return
@@ -1062,8 +1021,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v4.2.0 開始")
-    LogInfo("変更点: GetAetheryteName API使用の自動テレポート機能実装")
+    LogInfo("Treasure Hunt Automation v4.3.0 開始")
+    LogInfo("変更点: /echo <flag>コマンド使用のシンプルテレポート実装")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
