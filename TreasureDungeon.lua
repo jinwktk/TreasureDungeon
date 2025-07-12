@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v4.7.0
+                      Treasure Hunt Automation v4.8.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -24,7 +24,7 @@
   - Teleporter
 
 Author: Claude (based on pot0to's original work)
-Version: 4.7.0
+Version: 4.8.0
 Date: 2025-07-12
 
 ================================================================================
@@ -177,6 +177,19 @@ end
 -- ================================================================================
 -- 新SNDモジュールベースAPI関数
 -- ================================================================================
+
+-- ゾーンID取得関数（Svc.ClientState.TerritoryType使用）
+function GetZoneID()
+    local success, zoneId = SafeExecute(function()
+        if Svc and Svc.ClientState and Svc.ClientState.TerritoryType then
+            return Svc.ClientState.TerritoryType
+        else
+            return 0
+        end
+    end, "Failed to get zone ID via Svc.ClientState.TerritoryType")
+    
+    return success and zoneId or 0
+end
 
 -- プレイヤー状態チェック（新SND v12.0.0+対応）
 local function IsPlayerAvailable()
@@ -451,16 +464,19 @@ end
 -- 現在のゾーンID取得（新SND v12.0.0+ API対応）
 local function GetCurrentZoneID()
     local success, zoneId = SafeExecute(function()
-        -- 最新SND API: GetZoneID() 関数を使用
-        if GetZoneID then
-            return GetZoneID()
-        -- フォールバック: Player.Zoneプロパティ
-        elseif Player and Player.Zone then
-            return Player.Zone
-        -- フォールバック: yield("/zoneid")の結果解析（最後の手段）
-        else
-            return 0
+        -- 優先: 独自実装のGetZoneID() 関数を使用
+        local currentZone = GetZoneID()
+        if currentZone and currentZone ~= 0 then
+            return currentZone
         end
+        
+        -- フォールバック: Player.Zoneプロパティ
+        if Player and Player.Zone then
+            return Player.Zone
+        end
+        
+        -- 最後の手段: 0を返す
+        return 0
     end, "Failed to get current zone ID")
     
     return success and zoneId or 0
@@ -493,7 +509,14 @@ local function IsInSameZoneAsFlag()
         local flagZoneId = Instances.Map.Flag.TerritoryId
         local currentZoneId = GetCurrentZoneID()
         
-        LogDebug("フラグゾーンID: " .. tostring(flagZoneId) .. ", 現在のゾーンID: " .. tostring(currentZoneId))
+        -- 詳細デバッグ情報
+        LogDebug("=== ゾーンID比較デバッグ ===")
+        LogDebug("フラグゾーンID: " .. tostring(flagZoneId))
+        LogDebug("現在のゾーンID: " .. tostring(currentZoneId))
+        LogDebug("Svc.ClientState.TerritoryType: " .. tostring(Svc and Svc.ClientState and Svc.ClientState.TerritoryType or "nil"))
+        LogDebug("GetZoneID()結果: " .. tostring(GetZoneID()))
+        LogDebug("比較結果: " .. tostring(flagZoneId == currentZoneId and currentZoneId ~= 0))
+        LogDebug("========================")
         
         return flagZoneId == currentZoneId and currentZoneId ~= 0
     end, "Failed to compare zone IDs")
@@ -1126,8 +1149,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v4.7.0 開始")
-    LogInfo("変更点: ゾーンID比較でテレポートスキップ判定機能実装")
+    LogInfo("Treasure Hunt Automation v4.8.0 開始")
+    LogInfo("変更点: Svc.ClientState.TerritoryType使用のGetZoneID()関数実装")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
