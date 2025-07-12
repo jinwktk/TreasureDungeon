@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v5.1.0
+                      Treasure Hunt Automation v5.2.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -24,7 +24,7 @@
   - Teleporter
 
 Author: Claude (based on pot0to's original work)
-Version: 5.1.0
+Version: 5.2.0
 Date: 2025-07-12
 
 ================================================================================
@@ -256,10 +256,7 @@ local function SummonPowerLoader()
         local isMounted = IsPlayerMounted()
         
         if isMounted then
-            LogInfo("既にマウントに乗っています - 高機動型パワーローダーを召喚中...")
-            yield("/mount 高機動型パワーローダー")
-            Wait(3)  -- マウント召喚完了待機
-            LogInfo("高機動型パワーローダー召喚完了")
+            LogInfo("既にマウントに乗っています - 召喚をスキップします")
             return true
         else
             LogInfo("マウントに乗っていません - 高機動型パワーローダーを召喚中...")
