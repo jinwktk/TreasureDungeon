@@ -328,17 +328,49 @@ local function ExecuteMapPurchase(mapConfig)
     -- 2. マーケットボードに移動
     LogInfo("マーケットボードに向けて移動中...")
     if HasPlugin("vnavmesh") then
-        -- vnavmeshでマーケットボードに移動（座標指定）
-        yield("/vnav goto 123.5 40.2 -38.8")  -- リムサのマーケットボード座標
-        Wait(5)
+        -- vnavmeshでマーケットボードに移動（複数のコマンドを試行）
+        LogInfo("vnavmeshコマンドを実行中...")
         
-        -- 移動完了まで待機
-        while IsPlayerMoving() do
+        -- リムサのマーケットボード付近に移動（異なるコマンドを試行）
+        yield("/vnav moveto 123.5 40.2 -38.8")
+        Wait(3)
+        
+        -- 移動が開始されない場合は別のコマンドを試行
+        if not IsPlayerMoving() then
+            LogInfo("代替移動コマンドを試行...")
+            yield("/vnav goto <123.5, 40.2, -38.8>")
+            Wait(3)
+        end
+        
+        -- 移動が開始されない場合はターゲット移動を試行
+        if not IsPlayerMoving() then
+            LogInfo("マーケットボードをターゲットして移動...")
+            yield("/target マーケットボード")
+            Wait(2)
+            yield("/vnav movetarget")
+            Wait(3)
+        end
+        
+        -- 移動完了まで待機（タイムアウト付き）
+        local moveTimeout = 30
+        local moveStartTime = os.clock()
+        
+        while IsPlayerMoving() and not IsTimeout(moveStartTime, moveTimeout) do
+            LogDebug("移動中...")
             Wait(1)
+        end
+        
+        if IsTimeout(moveStartTime, moveTimeout) then
+            LogWarn("移動タイムアウト - 手動で移動してください")
+            LogInfo("手動移動の場合は、マーケットボード付近で待機してください")
+            Wait(15)  -- 手動移動のための時間
+        else
+            LogInfo("マーケットボード付近に到着")
         end
     else
         LogWarn("vnavmeshが利用できません。手動でマーケットボードに移動してください")
-        Wait(10)
+        LogInfo("リムサ・ロミンサのマーケットボード（エーテライト広場）付近に移動してください")
+        Wait(15)  -- 手動移動のための時間
     end
     
     -- 3. マーケットボードをターゲット
@@ -415,6 +447,34 @@ local function ExecuteMapSearch(mapConfig)
     
     LogWarn("地図購入に失敗")
     return false
+end
+
+-- シンプルな地図購入（手動移動版）
+local function ExecuteMapPurchaseSimple(mapConfig)
+    LogInfo("シンプル地図購入を開始（手動移動）")
+    
+    -- 1. リムサ・ロミンサにテレポート
+    LogInfo("リムサ・ロミンサにテレポート中...")
+    yield("/tp リムサ・ロミンサ")
+    Wait(10)
+    
+    -- 2. 手動移動の指示
+    LogInfo("手動でマーケットボードに移動してください")
+    LogInfo("移動完了後、マーケットボード付近で待機してください")
+    Wait(20)  -- 手動移動のための時間
+    
+    -- 3. マーケットボードをターゲット
+    LogInfo("マーケットボードをターゲット中...")
+    yield("/target マーケットボード")
+    Wait(2)
+    
+    -- 4. インタラクト
+    LogInfo("マーケットボードとインタラクト中...")
+    yield("/interact")
+    Wait(5)
+    
+    -- 5. 購入処理
+    return ExecuteMapSearch(mapConfig)
 end
 
 -- ExecuteMarketBoardSearchを参考にした改良版
@@ -507,16 +567,24 @@ local function ExecuteMapPurchasePhase()
     
     LogInfo("地図を購入する必要があります")
     
-    -- 関数存在確認付きマーケットボード自動購入
+    -- 関数存在確認付きマーケットボード自動購入（複数の方式を試行）
     local purchaseSuccess = false
     
-    if type(ExecuteMapPurchase) == "function" then
-        purchaseSuccess = ExecuteMapPurchase(mapConfig)
-        LogInfo("基本購入実行結果: " .. tostring(purchaseSuccess))
+    -- 1. シンプル購入（手動移動）を試行
+    if type(ExecuteMapPurchaseSimple) == "function" then
+        purchaseSuccess = ExecuteMapPurchaseSimple(mapConfig)
+        LogInfo("シンプル購入実行結果: " .. tostring(purchaseSuccess))
     else
-        LogError("ExecuteMapPurchase関数が見つかりません")
+        LogError("ExecuteMapPurchaseSimple関数が見つかりません")
     end
     
+    -- 2. 基本購入（自動移動）を試行
+    if not purchaseSuccess and type(ExecuteMapPurchase) == "function" then
+        purchaseSuccess = ExecuteMapPurchase(mapConfig)
+        LogInfo("基本購入実行結果: " .. tostring(purchaseSuccess))
+    end
+    
+    -- 3. 高度購入を試行
     if not purchaseSuccess and type(ExecuteMapPurchaseAdvanced) == "function" then
         purchaseSuccess = ExecuteMapPurchaseAdvanced(mapConfig)
         LogInfo("高度購入実行結果: " .. tostring(purchaseSuccess))
