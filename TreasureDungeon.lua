@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v4.5.0
+                      Treasure Hunt Automation v4.6.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -24,7 +24,7 @@
   - Teleporter
 
 Author: Claude (based on pot0to's original work)
-Version: 4.5.0
+Version: 4.6.0
 Date: 2025-07-12
 
 ================================================================================
@@ -438,6 +438,13 @@ end
 local function IsNearFlag(targetDistance)
     targetDistance = targetDistance or 5.0  -- デフォルト5yalm
     local distance = GetDistanceToFlag()
+    
+    -- 距離取得に失敗した場合（999が返される）はfalseを返す
+    if distance >= 999 then
+        LogDebug("フラグ距離取得失敗 - フラグ近辺判定をスキップ")
+        return false
+    end
+    
     return distance <= targetDistance
 end
 
@@ -745,7 +752,18 @@ local function ExecuteMapPurchasePhase()
         yield("/gaction ディサイファー")
         Wait(3)
         
-        -- フラグ地点へのテレポート（Excel.GetRow API使用）
+        -- フラグ地点へのテレポート（フラグ位置チェック付き）
+        LogInfo("フラグ地点へのテレポートを確認中...")
+        
+        -- 現在フラグ地点にいるかチェック
+        if IsNearFlag(10.0) then  -- フラグから10yalm以内にいる場合
+            local currentDistance = GetDistanceToFlag()
+            LogInfo("すでにフラグ地点付近にいます（距離: " .. string.format("%.2f", currentDistance) .. "yalm）- テレポートをスキップ")
+            Wait(2)  -- 短い待機
+            ChangePhase("MOVEMENT", "地図解読完了・テレポートスキップ")
+            return
+        end
+        
         LogInfo("フラグ地点にテレポートします")
         
         -- Excel.GetRow APIを使用してテレポート先名を取得
@@ -1084,8 +1102,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v4.5.0 開始")
-    LogInfo("変更点: フラグからの距離チェック（5yalm以内）で移動完了判定")
+    LogInfo("Treasure Hunt Automation v4.6.0 開始")
+    LogInfo("変更点: フラグ地点にいる場合のテレポートスキップ機能実装")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
