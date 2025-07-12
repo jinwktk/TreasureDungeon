@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v3.1.5
+                      Treasure Hunt Automation v3.1.6
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -24,7 +24,7 @@
   - Teleporter
 
 Author: Claude (based on pot0to's original work)
-Version: 3.1.5
+Version: 3.1.6
 Date: 2025-07-12
 
 ================================================================================
@@ -454,66 +454,62 @@ local function ExecuteMapPurchase(mapConfig)
     return ExecuteMapSearch(mapConfig)
 end
 
--- マーケットボードでの地図検索・購入
+-- 安全な待機関数
+local function SafeWait(seconds)
+    local endTime = os.clock() + seconds
+    while os.clock() < endTime do
+        yield("/wait 0.1")
+    end
+end
+
+-- マーケットボードでの地図検索・購入（改良版）
 local function ExecuteMapSearch(mapConfig)
     LogInfo("マーケットボードで地図を検索中...")
     
     local searchTerm = mapConfig.searchTerm or CONFIG.MAP_TYPE
     LogInfo("検索キーワード: " .. searchTerm)
     
-    -- マーケットボードが表示されるまで待機
-    local waitCount = 0
-    while not IsAddonVisible("ItemSearchResult") and waitCount < 10 do
-        if IsAddonVisible("ItemSearch") then
-            LogInfo("アイテム検索画面を確認")
-            break
+    -- マーケットボードとのインタラクト
+    yield("/interact")
+    yield('/waitaddon ItemSearch')
+    SafeWait(0.5)
+    
+    -- 地図を検索（pcallコマンド使用）
+    LogInfo("pcallコマンドで地図検索を実行: " .. searchTerm)
+    yield('/pcall ItemSearch true 9 false false ' .. searchTerm .. ' ' .. searchTerm .. ' false false false')
+    SafeWait(0.5)
+    
+    -- 検索実行のシーケンス
+    LogInfo("検索シーケンスを実行中...")
+    local searchSequence = {
+        "yield('/pcall ItemSearch True 5 0')",
+        "yield('/waitaddon ItemSearchResult')", 
+        "yield('/pcall ItemHistory True -1')",
+        "yield('/pcall ItemSearchResult True 2 0')",
+        "yield('/pcall ItemSearch True -1')"
+    }
+    
+    for i, command in ipairs(searchSequence) do
+        LogDebug("検索ステップ " .. i .. ": " .. command)
+        local success, err = pcall(load(command))
+        if not success then
+            LogWarn("検索ステップ " .. i .. " でエラー: " .. tostring(err))
         end
-        Wait(1)
-        waitCount = waitCount + 1
+        SafeWait(0.5)
     end
     
-    if waitCount >= 10 then
-        LogWarn("マーケットボードの表示がタイムアウト")
+    -- 購入確認ダイアログの処理
+    SafeWait(2)
+    if IsAddonVisible("SelectYesno") then
+        LogInfo("購入確認ダイアログを処理中...")
+        yield("/callback SelectYesno true 0") -- はい
+        SafeWait(3)
+        LogInfo("地図購入完了")
+        return true
+    else
+        LogWarn("購入確認ダイアログが表示されませんでした")
         return false
     end
-    
-    -- 検索実行
-    if IsAddonVisible("ItemSearch") then
-        -- アイテム名で検索
-        LogInfo("地図を検索中: " .. searchTerm)
-        
-        -- 検索ボックスに入力（簡易実装）
-        yield("/send " .. searchTerm)
-        Wait(2)
-        
-        -- 検索実行
-        yield("/click search")
-        Wait(3)
-        
-        -- 検索結果から購入
-        if IsAddonVisible("ItemSearchResult") then
-            LogInfo("検索結果から購入中...")
-            
-            -- 最初の結果を選択
-            yield("/click result1")
-            Wait(2)
-            
-            -- 購入実行
-            yield("/click purchase")
-            Wait(2)
-            
-            -- 購入確認
-            if IsAddonVisible("SelectYesno") then
-                yield("/callback SelectYesno true 0") -- はい
-                Wait(3)
-                LogInfo("地図購入完了")
-                return true
-            end
-        end
-    end
-    
-    LogWarn("地図購入に失敗")
-    return false
 end
 
 -- シンプルな地図購入（手動移動版）
@@ -580,17 +576,7 @@ local function ExecuteMapPurchaseSimple(mapConfig)
         end
     end
     
-    -- 3. マーケットボードをターゲット
-    LogInfo("マーケットボードをターゲット中...")
-    yield("/target マーケットボード")
-    Wait(2)
-    
-    -- 4. インタラクト
-    LogInfo("マーケットボードとインタラクト中...")
-    yield("/interact")
-    Wait(5)
-    
-    -- 5. 購入処理
+    -- 3. 購入処理（ExecuteMapSearchでインタラクトも実行）
     return ExecuteMapSearch(mapConfig)
 end
 
@@ -926,8 +912,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v3.1.5 開始")
-    LogInfo("変更点: オブジェクト別ターゲット距離設定（MB:3.0 宝箱:5.0）")
+    LogInfo("Treasure Hunt Automation v3.1.6 開始")
+    LogInfo("変更点: pcallコマンドによるマーケットボード検索実装")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
