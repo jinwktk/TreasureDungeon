@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v3.1.1
+                      Treasure Hunt Automation v3.1.2
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -24,7 +24,7 @@
   - Teleporter
 
 Author: Claude (based on pot0to's original work)
-Version: 3.1.1
+Version: 3.1.2
 Date: 2025-07-12
 
 ================================================================================
@@ -517,35 +517,67 @@ local function ExecuteMapPurchaseSimple(mapConfig)
     end
     
     -- 2. マーケットボードに自動移動
-    LogInfo("マーケットボードをターゲットして移動中...")
-    yield("/target マーケットボード")
-    Wait(2)
+    LogInfo("マーケットボードに移動中...")
     
     -- 距離チェック：既に近くにいる場合は移動をスキップ
     if IsNearMarketBoard() then
         LogInfo("既にマーケットボード付近にいます - 移動をスキップ")
     else
         if HasPlugin("vnavmesh") then
-            LogInfo("vnavmeshでマーケットボードに移動中...")
-            yield("/vnav movetarget")
-            Wait(3)
+            -- 複数の移動方法を試行
+            LogInfo("vnavmeshでマーケットボードに移動開始...")
             
-            -- 移動完了まで待機（距離チェック付き）
-            local moveTimeout = 30
-            local moveStartTime = os.clock()
+            -- 方法1: 座標指定移動
+            LogInfo("座標指定移動を試行...")
+            yield("/vnav moveto 123.5 40.2 -38.8")
+            Wait(5)
             
-            while not IsNearMarketBoard() and IsPlayerMoving() and not IsTimeout(moveStartTime, moveTimeout) do
-                LogDebug("マーケットボードへ移動中...")
-                Wait(1)
+            -- 移動が開始されない場合は方法2を試行
+            if not IsPlayerMoving() then
+                LogInfo("ターゲット移動を試行...")
+                yield("/target マーケットボード")
+                Wait(2)
+                yield("/vnav movetarget")
+                Wait(3)
             end
             
-            if IsNearMarketBoard() then
-                LogInfo("マーケットボード付近に到着（ターゲット可能距離）")
-                yield("/vnav stop")  -- 移動停止
-            elseif IsTimeout(moveStartTime, moveTimeout) then
-                LogWarn("移動タイムアウト - 手動で移動してください")
+            -- 移動が開始されない場合は方法3を試行
+            if not IsPlayerMoving() then
+                LogInfo("手動移動コマンドを実行...")
+                yield("/target マーケットボード")
+                Wait(1)
+                -- 手動でマーケットボードに向かって歩く指示
+                LogInfo("手動でマーケットボードに移動してください")
+                Wait(15)
             else
-                LogInfo("移動完了")
+                -- 移動完了まで待機（距離チェック付き）
+                local moveTimeout = 45
+                local moveStartTime = os.clock()
+                local lastDistance = 999
+                
+                while not IsNearMarketBoard() and not IsTimeout(moveStartTime, moveTimeout) do
+                    local currentDistance = GetDistanceToPoint(123.5, 40.2, -38.8)
+                    
+                    -- 進捗確認：距離が変化しているかチェック
+                    if math.abs(currentDistance - lastDistance) < 0.1 and IsPlayerMoving() == false then
+                        LogInfo("移動が停止しました。手動で続行してください")
+                        break
+                    end
+                    
+                    LogDebug("マーケットボードへ移動中... 距離: " .. string.format("%.2f", currentDistance))
+                    lastDistance = currentDistance
+                    Wait(2)
+                end
+                
+                if IsNearMarketBoard() then
+                    LogInfo("マーケットボード付近に到着（ターゲット可能距離）")
+                    yield("/vnav stop")  -- 移動停止
+                elseif IsTimeout(moveStartTime, moveTimeout) then
+                    LogWarn("移動タイムアウト - 手動でマーケットボードに移動してください")
+                    yield("/vnav stop")
+                else
+                    LogInfo("移動完了")
+                end
             end
         else
             LogWarn("vnavmeshが利用できません。手動でマーケットボードに移動してください")
@@ -885,8 +917,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v3.1.1 開始")
-    LogInfo("変更点: 距離計算によるターゲット可能距離での自動停止")
+    LogInfo("Treasure Hunt Automation v3.1.2 開始")
+    LogInfo("変更点: 複数移動方法の試行とスタック検出機能")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
