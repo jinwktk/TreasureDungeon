@@ -24,7 +24,7 @@
   - Teleporter
 
 Author: Claude (based on pot0to's original work)
-Version: 3.0.9
+Version: 3.1.0
 Date: 2025-07-12
 
 ================================================================================
@@ -493,10 +493,34 @@ local function ExecuteMapPurchaseSimple(mapConfig)
         Wait(10)
     end
     
-    -- 2. 手動移動の指示
-    LogInfo("手動でマーケットボードに移動してください")
-    LogInfo("移動完了後、マーケットボード付近で待機してください")
-    Wait(20)  -- 手動移動のための時間
+    -- 2. マーケットボードに自動移動
+    LogInfo("マーケットボードをターゲットして移動中...")
+    yield("/target マーケットボード")
+    Wait(2)
+    
+    if HasPlugin("vnavmesh") then
+        LogInfo("vnavmeshでマーケットボードに移動中...")
+        yield("/vnav movetarget")
+        Wait(3)
+        
+        -- 移動完了まで待機（タイムアウト付き）
+        local moveTimeout = 15
+        local moveStartTime = os.clock()
+        
+        while IsPlayerMoving() and not IsTimeout(moveStartTime, moveTimeout) do
+            LogDebug("マーケットボードへ移動中...")
+            Wait(1)
+        end
+        
+        if IsTimeout(moveStartTime, moveTimeout) then
+            LogWarn("移動タイムアウト - 手動で移動してください")
+        else
+            LogInfo("マーケットボード付近に到着")
+        end
+    else
+        LogWarn("vnavmeshが利用できません。手動でマーケットボードに移動してください")
+        Wait(15)
+    end
     
     -- 3. マーケットボードをターゲット
     LogInfo("マーケットボードをターゲット中...")
@@ -830,8 +854,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v3.0.9 開始")
-    LogInfo("変更点: Svc.ClientState.TerritoryTypeでゾーン検出修正")
+    LogInfo("Treasure Hunt Automation v3.1.0 開始")
+    LogInfo("変更点: マーケットボード自動移動機能追加")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
