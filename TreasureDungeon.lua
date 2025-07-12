@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v4.9.0
+                      Treasure Hunt Automation v5.0.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -24,7 +24,7 @@
   - Teleporter
 
 Author: Claude (based on pot0to's original work)
-Version: 4.9.0
+Version: 5.0.0
 Date: 2025-07-12
 
 ================================================================================
@@ -235,6 +235,19 @@ local function GetCurrentJob()
         end
     end, "Failed to get current job")
     return success and result or 0
+end
+
+-- マウント状態チェック
+local function IsPlayerMounted()
+    local success, result = SafeExecute(function()
+        -- 新SND API: Entity.Player.IsMounted プロパティ
+        if Entity and Entity.Player and Entity.Player.IsMounted ~= nil then
+            return Entity.Player.IsMounted
+        else
+            return false  -- デフォルトでマウントしていないとする
+        end
+    end, "Failed to check mount status")
+    return success and result or false
 end
 
 -- インベントリ管理
@@ -935,20 +948,49 @@ local function ExecuteMovementPhase()
         return
     end
     
-    -- 移動完了チェック（フラグ距離ベース）
+    -- 移動完了チェック（プレイヤー状態ベース）
     local isMoving = IsPlayerMoving()
-    local isNearFlag = IsNearFlag(5.0)  -- フラグから5yalm以内
+    local isMounted = IsPlayerMounted()
     local flagDistance = GetDistanceToFlag()
     
-    -- フラグ地点到達チェック（距離ベース）
-    if isNearFlag and not digExecuted then
-        LogInfo("フラグ地点に到達しました（距離: " .. string.format("%.2f", flagDistance) .. "yalm）")
-        
+    -- フラグ距離が取得できる場合は距離ベース判定
+    local isNearFlag = false
+    if flagDistance < 999 then
+        isNearFlag = flagDistance <= 5.0
+        LogDebug("フラグ距離ベース判定: " .. string.format("%.2f", flagDistance) .. "yalm")
+    end
+    
+    -- フラグ地点到達判定（複数条件）
+    local shouldDig = false
+    if not digExecuted then
+        -- 条件1: フラグ距離が取得でき、5yalm以内
+        if isNearFlag then
+            LogInfo("フラグ地点に到達しました（距離: " .. string.format("%.2f", flagDistance) .. "yalm）")
+            shouldDig = true
+        -- 条件2: プレイヤーが移動停止し、マウントも降りている
+        elseif not isMoving and not isMounted then
+            LogInfo("移動完了・マウント降車を検出しました - 発掘を実行")
+            shouldDig = true
+        -- 条件3: vnavmesh移動が5分以上経過（タイムアウト）
+        elseif CheckPhaseTimeout() then
+            LogWarn("移動タイムアウト - 強制発掘を実行")
+            shouldDig = true
+        end
+    end
+    
+    if shouldDig then
         -- vnavmesh移動を停止
         if HasPlugin("vnavmesh") then
             yield("/vnav stop")
             LogDebug("vnavmesh移動を停止")
             Wait(1)
+        end
+        
+        -- マウントから降りる（念のため）
+        if isMounted then
+            LogInfo("マウントから降車中...")
+            yield("/mount")
+            Wait(2)
         end
         
         -- 発掘実行
@@ -994,15 +1036,27 @@ local function ExecuteMovementPhase()
         return
     end
     
-    -- 移動中の場合は待機（フラグ距離も表示）
-    if isMoving or not isNearFlag then
+    -- 移動中の場合は待機（詳細状態表示）
+    if isMoving or isMounted or (flagDistance >= 999) then
         if iteration % 5 == 0 then  -- 5秒おきにログ出力
-            LogDebug("移動中... (経過時間: " .. math.floor(os.clock() - phaseStartTime) .. "秒, フラグ距離: " .. string.format("%.2f", flagDistance) .. "yalm)")
+            local statusMsg = "移動中... (経過時間: " .. math.floor(os.clock() - phaseStartTime) .. "秒"
+            if flagDistance < 999 then
+                statusMsg = statusMsg .. ", フラグ距離: " .. string.format("%.2f", flagDistance) .. "yalm"
+            else
+                statusMsg = statusMsg .. ", フラグ距離: 取得不可"
+            end
+            statusMsg = statusMsg .. ", マウント: " .. (isMounted and "ON" or "OFF") .. ")"
+            LogDebug(statusMsg)
         end
         Wait(1)
     else
         -- 移動していないが発掘がまだの場合、少し待つ
-        LogDebug("移動停止。発掘処理を待機中... (フラグ距離: " .. string.format("%.2f", flagDistance) .. "yalm)")
+        local statusMsg = "移動停止。発掘処理を待機中... (マウント: " .. (isMounted and "ON" or "OFF")
+        if flagDistance < 999 then
+            statusMsg = statusMsg .. ", フラグ距離: " .. string.format("%.2f", flagDistance) .. "yalm"
+        end
+        statusMsg = statusMsg .. ")"
+        LogDebug(statusMsg)
         Wait(2)
     end
 end
@@ -1173,8 +1227,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v4.9.0 開始")
-    LogInfo("変更点: フラグ距離エラー修正・飛行マウント召喚機能追加")
+    LogInfo("Treasure Hunt Automation v5.0.0 開始")
+    LogInfo("変更点: マウント状態ベースの移動完了判定・フラグ座標依存回避")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
