@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v5.2.0
+                      Treasure Hunt Automation v5.3.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -24,7 +24,7 @@
   - Teleporter
 
 Author: Claude (based on pot0to's original work)
-Version: 5.2.0
+Version: 5.3.0
 Date: 2025-07-12
 
 ================================================================================
@@ -247,6 +247,22 @@ local function IsPlayerMounted()
             return false  -- デフォルトでマウントしていないとする
         end
     end, "Failed to check mount status")
+    return success and result or false
+end
+
+-- vnavmesh移動状態チェック
+local function IsVNavMoving()
+    local success, result = SafeExecute(function()
+        -- vnavmeshが移動中かチェック
+        if PathfindInProgress then
+            return PathfindInProgress()
+        elseif vnavmesh and vnavmesh.PathfindInProgress then
+            return vnavmesh.PathfindInProgress()
+        else
+            -- フォールバック: プレイヤーの移動状態で判定
+            return IsPlayerMoving()
+        end
+    end, "Failed to check vnav movement status")
     return success and result or false
 end
 
@@ -969,9 +985,10 @@ local function ExecuteMovementPhase()
         return
     end
     
-    -- 移動完了チェック（プレイヤー状態ベース）
+    -- 移動完了チェック（vnavmesh優先判定）
     local isMoving = IsPlayerMoving()
     local isMounted = IsPlayerMounted()
+    local isVNavMoving = IsVNavMoving()
     local flagDistance = GetDistanceToFlag()
     
     -- フラグ距離が取得できる場合は距離ベース判定
@@ -981,18 +998,26 @@ local function ExecuteMovementPhase()
         LogDebug("フラグ距離ベース判定: " .. string.format("%.2f", flagDistance) .. "yalm")
     end
     
-    -- フラグ地点到達判定（複数条件）
+    -- 詳細な移動状態ログ
+    local elapsedTime = os.time() - phaseStartTime
+    LogDebug("移動状態確認 - 経過時間: " .. elapsedTime .. "秒, vnavmesh移動中: " .. tostring(isVNavMoving) .. ", プレイヤー移動中: " .. tostring(isMoving) .. ", マウント状態: " .. tostring(isMounted))
+    
+    -- フラグ地点到達判定（優先順位付き）
     local shouldDig = false
     if not digExecuted then
         -- 条件1: フラグ距離が取得でき、5yalm以内
         if isNearFlag then
             LogInfo("フラグ地点に到達しました（距離: " .. string.format("%.2f", flagDistance) .. "yalm）")
             shouldDig = true
-        -- 条件2: プレイヤーが移動停止し、マウントも降りている
-        elseif not isMoving and not isMounted then
+        -- 条件2: vnavmesh移動が完了している（最優先）
+        elseif not isVNavMoving and elapsedTime > 10 then
+            LogInfo("vnavmesh移動完了を検出 - 発掘を実行")
+            shouldDig = true
+        -- 条件3: プレイヤーが移動停止し、マウントも降りている
+        elseif not isMoving and not isMounted and elapsedTime > 15 then
             LogInfo("移動完了・マウント降車を検出しました - 発掘を実行")
             shouldDig = true
-        -- 条件3: vnavmesh移動が5分以上経過（タイムアウト）
+        -- 条件4: vnavmesh移動が5分以上経過（タイムアウト）
         elseif CheckPhaseTimeout() then
             LogWarn("移動タイムアウト - 強制発掘を実行")
             shouldDig = true
