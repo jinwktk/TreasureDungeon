@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v5.0.0
+                      Treasure Hunt Automation v5.1.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -24,7 +24,7 @@
   - Teleporter
 
 Author: Claude (based on pot0to's original work)
-Version: 5.0.0
+Version: 5.1.0
 Date: 2025-07-12
 
 ================================================================================
@@ -248,6 +248,29 @@ local function IsPlayerMounted()
         end
     end, "Failed to check mount status")
     return success and result or false
+end
+
+-- マウント状態に応じて高機動型パワーローダーを召喚
+local function SummonPowerLoader()
+    local success = SafeExecute(function()
+        local isMounted = IsPlayerMounted()
+        
+        if isMounted then
+            LogInfo("既にマウントに乗っています - 高機動型パワーローダーを召喚中...")
+            yield("/mount 高機動型パワーローダー")
+            Wait(3)  -- マウント召喚完了待機
+            LogInfo("高機動型パワーローダー召喚完了")
+            return true
+        else
+            LogInfo("マウントに乗っていません - 高機動型パワーローダーを召喚中...")
+            yield("/mount 高機動型パワーローダー")
+            Wait(3)  -- マウント召喚完了待機
+            LogInfo("高機動型パワーローダー召喚完了")
+            return true
+        end
+    end, "Failed to summon power loader")
+    
+    return success
 end
 
 -- インベントリ管理
@@ -930,16 +953,17 @@ local function ExecuteMovementPhase()
     if not movementStarted then
         LogInfo("宝の場所への移動を開始します")
         if HasPlugin("vnavmesh") then
-            -- 飛行マウント召喚
-            LogInfo("飛行マウントを召喚中...")
-            yield("/mount 高機動型パワーローダー")
-            Wait(3)  -- マウント召喚完了待機
-            
-            -- vnavmeshで飛行移動開始
-            LogInfo("vnavmeshで飛行移動開始...")
-            yield("/vnav flyflag")
-            movementStarted = true
-            LogDebug("vnavmesh飛行移動開始")
+            -- 飛行マウント召喚（マウント状態に応じて実行）
+            if SummonPowerLoader() then
+                -- vnavmeshで飛行移動開始
+                LogInfo("vnavmeshで飛行移動開始...")
+                yield("/vnav flyflag")
+                movementStarted = true
+                LogDebug("vnavmesh飛行移動開始")
+            else
+                LogWarn("マウント召喚に失敗しました")
+                return
+            end
         else
             LogWarn("vnavmeshが利用できません。手動で移動してください")
             movementStarted = true  -- 手動移動待機
