@@ -24,7 +24,7 @@
   - Teleporter
 
 Author: Claude (based on pot0to's original work)
-Version: 3.0.0
+Version: 3.0.9
 Date: 2025-07-12
 
 ================================================================================
@@ -316,34 +316,27 @@ end
 -- 地図購入ヘルパー関数
 -- ================================================================================
 
--- 現在地チェック関数
+-- 現在地チェック関数（新SND API対応）
 local function IsInLimsa()
-    -- GetZoneID()でリムサ・ロミンサかどうか確認
+    -- 新SND v12.0.0+でのゾーン情報取得（正しいAPI使用）
     local success, zoneId = SafeExecute(function()
-        return GetZoneID and GetZoneID() or 0
+        -- 正しいAPI: Svc.ClientState.TerritoryType
+        if Svc and Svc.ClientState and Svc.ClientState.TerritoryType then
+            return Svc.ClientState.TerritoryType
+        else
+            return 0
+        end
     end, "Failed to get zone ID")
     
     LogDebug("現在のゾーンID: " .. tostring(zoneId))
     
     -- リムサ・ロミンサのゾーンID: 129
     if success and zoneId == 129 then
-        LogDebug("ゾーンIDでリムサ・ロミンサを確認")
+        LogDebug("Svc.ClientState.TerritoryTypeでリムサ・ロミンサを確認")
         return true
     end
     
-    -- 代替手段：GetZoneName()を使用
-    local success2, zoneName = SafeExecute(function()
-        return GetZoneName and GetZoneName() or ""
-    end, "Failed to get zone name")
-    
-    LogDebug("現在のゾーン名: " .. tostring(zoneName))
-    
-    if success2 and (string.find(zoneName, "リムサ") or string.find(zoneName, "Limsa")) then
-        LogDebug("ゾーン名でリムサ・ロミンサを確認")
-        return true
-    end
-    
-    LogDebug("リムサ・ロミンサではない場所にいます")
+    LogDebug("リムサ・ロミンサではない場所にいます (ゾーンID: " .. tostring(zoneId) .. ")")
     return false
 end
 
@@ -489,7 +482,10 @@ local function ExecuteMapPurchaseSimple(mapConfig)
     LogInfo("シンプル地図購入を開始（手動移動）")
     
     -- 1. 現在地チェック・テレポート
-    if IsInLimsa() then
+    local isInLimsa = IsInLimsa()
+    LogInfo("位置チェック結果: " .. tostring(isInLimsa))
+    
+    if isInLimsa then
         LogInfo("すでにリムサ・ロミンサにいます - テレポートをスキップ")
     else
         LogInfo("リムサ・ロミンサにテレポート中...")
@@ -834,7 +830,7 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v3.0.0 開始")
+    LogInfo("Treasure Hunt Automation v3.0.9 開始")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
