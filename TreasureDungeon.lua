@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v3.1.7
+                      Treasure Hunt Automation v3.1.8
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -24,7 +24,7 @@
   - Teleporter
 
 Author: Claude (based on pot0to's original work)
-Version: 3.1.7
+Version: 3.1.8
 Date: 2025-07-12
 
 ================================================================================
@@ -658,20 +658,14 @@ local function ExecuteMapPurchasePhase()
         -- 解読後、フラグ地点にテレポート
         LogInfo("フラグ地点にテレポート中...")
         if HasPlugin("Teleporter") then
-            -- Teleporterプラグインの正しいコマンドを試行
-            yield("/teleporter")  -- または適切なコマンド
-            Wait(2)
-            -- フラグ地点への移動コマンド（要確認）
-            LogInfo("Teleporterプラグインを使用してフラグ地点に移動します")
-        end
-        
-        -- 代替手段：手動でのテレポート指示
-        if not HasPlugin("Teleporter") then
+            -- TeleportToFlagを参考にした正しいコマンド
+            LogInfo("Teleporterプラグインでフラグ地点にテレポート実行")
+            yield("/tp flag")  -- TeleportToFlagコマンド
+            Wait(8)  -- テレポート完了まで十分な時間
+        else
             LogInfo("手動でフラグ地点にテレポートしてください")
             LogInfo("地図を開いてフラグをクリックし、テレポートを実行してください")
             Wait(10)  -- 手動操作のための時間
-        else
-            Wait(5)  -- テレポート完了待機
         end
         
         ChangePhase("MOVEMENT", "地図解読・テレポート完了")
@@ -922,8 +916,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v3.1.7 開始")
-    LogInfo("変更点: フラグ地点テレポート機能修正")
+    LogInfo("Treasure Hunt Automation v3.1.8 開始")
+    LogInfo("変更点: TeleportToFlag対応で/tp flagコマンド実装")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
