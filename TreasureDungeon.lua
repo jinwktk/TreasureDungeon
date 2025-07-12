@@ -272,12 +272,13 @@ local function CheckPrerequisites()
         return false
     end
     
-    -- 必須プラグインチェック
-    local requiredPlugins = {"vnavmesh", "RotationSolverReborn", "AutoHook", "Teleporter"}
-    for _, plugin in ipairs(requiredPlugins) do
+    -- プラグインチェック（警告のみ）
+    local recommendedPlugins = {"vnavmesh", "RotationSolverReborn", "AutoHook", "Teleporter"}
+    for _, plugin in ipairs(recommendedPlugins) do
         if not HasPlugin(plugin) then
-            LogError("必須プラグインが見つかりません: " .. plugin)
-            return false
+            LogWarn("推奨プラグインが見つかりません: " .. plugin)
+        else
+            LogInfo("プラグイン確認: " .. plugin)
         end
     end
     
@@ -344,7 +345,11 @@ local function ExecuteMovementPhase()
     -- vnavmeshによる移動
     if not IsPlayerMoving() then
         LogDebug("フラグ地点への移動を開始")
-        yield("/vnav flyflag")
+        if HasPlugin("vnavmesh") then
+            yield("/vnav flyflag")
+        else
+            LogWarn("vnavmeshが利用できません。手動で移動してください")
+        end
         Wait(2)
     end
     
@@ -366,11 +371,17 @@ end
 
 -- 戦闘フェーズ
 local function ExecuteCombatPhase()
-    -- 戦闘自動化の有効化
+    -- 戦闘自動化の有効化（利用可能なプラグインのみ）
     if IsInCombat() then
         LogInfo("戦闘中。自動戦闘を開始します")
-        yield("/rotation auto on")
-        yield("/bmrai on")
+        
+        -- RSRが利用可能な場合のみ使用
+        if HasPlugin("RotationSolverReborn") then
+            yield("/rotation auto on")
+        end
+        
+        -- BMRが利用可能な場合のみ使用（コマンド要確認）
+        -- yield("/bmrai on")
         
         -- 戦闘終了まで待機
         local combatStartTime = os.clock()
@@ -380,8 +391,11 @@ local function ExecuteCombatPhase()
         
         if not IsInCombat() then
             LogInfo("戦闘終了")
-            yield("/rotation auto off")
-            yield("/bmrai off")
+            
+            -- RSRが利用可能な場合のみ停止
+            if HasPlugin("RotationSolverReborn") then
+                yield("/rotation auto off")
+            end
             
             -- ダンジョン検出
             if IsInDuty() then
@@ -402,9 +416,10 @@ end
 local function ExecuteDungeonPhase()
     LogInfo("ダンジョン探索を開始します")
     
-    -- 自動戦闘有効化
-    yield("/rotation auto on")
-    yield("/bmrai on")
+    -- 自動戦闘有効化（利用可能なプラグインのみ）
+    if HasPlugin("RotationSolverReborn") then
+        yield("/rotation auto on")
+    end
     
     local dungeonStartTime = os.clock()
     
@@ -430,7 +445,9 @@ local function ExecuteDungeonPhase()
             Wait(0.5)
             
             if HasTarget() then
-                yield("/vnav movetarget")
+                if HasPlugin("vnavmesh") then
+                    yield("/vnav movetarget")
+                end
                 Wait(1)
                 yield("/interact")
                 Wait(2)
@@ -447,8 +464,9 @@ local function ExecuteDungeonPhase()
     
     if not IsInDuty() then
         LogInfo("ダンジョン探索完了")
-        yield("/rotation auto off")
-        yield("/bmrai off")
+        if HasPlugin("RotationSolverReborn") then
+            yield("/rotation auto off")
+        end
         ChangePhase("COMPLETE", "ダンジョン脱出完了")
     else
         LogWarn("ダンジョンタイムアウト")
@@ -477,9 +495,10 @@ end
 local function ExecuteErrorPhase()
     LogError("エラーが発生しました。スクリプトを停止します")
     
-    -- 緊急停止処理
-    yield("/rotation auto off")
-    yield("/bmrai off")
+    -- 緊急停止処理（利用可能なプラグインのみ）
+    if HasPlugin("RotationSolverReborn") then
+        yield("/rotation auto off")
+    end
     yield("/automove off")
     
     stopRequested = true
