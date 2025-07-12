@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v3.1.2
+                      Treasure Hunt Automation v3.1.3
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -24,7 +24,7 @@
   - Teleporter
 
 Author: Claude (based on pot0to's original work)
-Version: 3.1.2
+Version: 3.1.3
 Date: 2025-07-12
 
 ================================================================================
@@ -316,27 +316,25 @@ end
 -- 地図購入ヘルパー関数
 -- ================================================================================
 
--- 指定座標までの距離計算
-local function GetDistanceToPoint(x, y, z)
+-- ターゲットまでの距離計算
+local function GetDistanceToTarget()
     local success, distance = SafeExecute(function()
-        local player = Entity.Player.Position
-        local dx = x - player.X
-        local dy = y - player.Y
-        local dz = z - player.Z
-        return math.sqrt(dx * dx + dy * dy + dz * dz)
-    end, "Failed to calculate distance")
+        if Entity and Entity.Player and Entity.Target and Entity.Player.Position and Entity.Target.Position then
+            return Vector3.Distance(Entity.Player.Position, Entity.Target.Position)
+        else
+            return 999
+        end
+    end, "Failed to calculate target distance")
     return success and distance or 999
 end
 
--- マーケットボードまでの距離チェック
+-- マーケットボードまでの距離チェック（ターゲット版）
 local function IsNearMarketBoard()
-    -- リムサ・ロミンサのマーケットボード座標
-    local mbX, mbY, mbZ = 123.5, 40.2, -38.8
-    local distance = GetDistanceToPoint(mbX, mbY, mbZ)
+    local distance = GetDistanceToTarget()
     local targetRange = 5.0  -- ターゲット可能距離
     
-    LogDebug("マーケットボードまでの距離: " .. string.format("%.2f", distance))
-    return distance <= targetRange
+    LogDebug("ターゲットまでの距離: " .. string.format("%.2f", distance))
+    return distance <= targetRange and distance < 999
 end
 
 -- 現在地チェック関数（新SND API対応）
@@ -424,10 +422,10 @@ local function ExecuteMapPurchase(mapConfig)
         Wait(15)  -- 手動移動のための時間
     end
     
-    -- 3. マーケットボードをターゲット
-    LogInfo("マーケットボードをターゲット中...")
+    -- 3. 最終ターゲット確認
+    LogInfo("マーケットボード最終確認...")
     yield("/target マーケットボード")
-    Wait(2)
+    Wait(1)
     
     -- 4. マーケットボードとインタラクト
     LogInfo("マーケットボードとインタラクト中...")
@@ -516,68 +514,47 @@ local function ExecuteMapPurchaseSimple(mapConfig)
         Wait(10)
     end
     
-    -- 2. マーケットボードに自動移動
-    LogInfo("マーケットボードに移動中...")
+    -- 2. マーケットボードをターゲットして移動
+    LogInfo("マーケットボードをターゲット中...")
+    yield("/target マーケットボード")
+    Wait(2)
     
     -- 距離チェック：既に近くにいる場合は移動をスキップ
     if IsNearMarketBoard() then
         LogInfo("既にマーケットボード付近にいます - 移動をスキップ")
     else
         if HasPlugin("vnavmesh") then
-            -- 複数の移動方法を試行
             LogInfo("vnavmeshでマーケットボードに移動開始...")
+            yield("/vnav movetarget")
+            Wait(3)
             
-            -- 方法1: 座標指定移動
-            LogInfo("座標指定移動を試行...")
-            yield("/vnav moveto 123.5 40.2 -38.8")
-            Wait(5)
+            -- 移動完了まで待機（ターゲット距離チェック付き）
+            local moveTimeout = 30
+            local moveStartTime = os.clock()
+            local lastDistance = 999
             
-            -- 移動が開始されない場合は方法2を試行
-            if not IsPlayerMoving() then
-                LogInfo("ターゲット移動を試行...")
-                yield("/target マーケットボード")
+            while not IsNearMarketBoard() and not IsTimeout(moveStartTime, moveTimeout) do
+                local currentDistance = GetDistanceToTarget()
+                
+                -- 進捗確認：距離が変化しているかチェック
+                if math.abs(currentDistance - lastDistance) < 0.1 and not IsPlayerMoving() then
+                    LogWarn("移動が停止しました。手動で続行してください")
+                    break
+                end
+                
+                LogDebug("マーケットボードへ移動中... ターゲット距離: " .. string.format("%.2f", currentDistance))
+                lastDistance = currentDistance
                 Wait(2)
-                yield("/vnav movetarget")
-                Wait(3)
             end
             
-            -- 移動が開始されない場合は方法3を試行
-            if not IsPlayerMoving() then
-                LogInfo("手動移動コマンドを実行...")
-                yield("/target マーケットボード")
-                Wait(1)
-                -- 手動でマーケットボードに向かって歩く指示
-                LogInfo("手動でマーケットボードに移動してください")
-                Wait(15)
+            if IsNearMarketBoard() then
+                LogInfo("マーケットボード付近に到着（ターゲット可能距離）")
+                yield("/vnav stop")  -- 移動停止
+            elseif IsTimeout(moveStartTime, moveTimeout) then
+                LogWarn("移動タイムアウト - 手動でマーケットボードに移動してください")
+                yield("/vnav stop")
             else
-                -- 移動完了まで待機（距離チェック付き）
-                local moveTimeout = 45
-                local moveStartTime = os.clock()
-                local lastDistance = 999
-                
-                while not IsNearMarketBoard() and not IsTimeout(moveStartTime, moveTimeout) do
-                    local currentDistance = GetDistanceToPoint(123.5, 40.2, -38.8)
-                    
-                    -- 進捗確認：距離が変化しているかチェック
-                    if math.abs(currentDistance - lastDistance) < 0.1 and IsPlayerMoving() == false then
-                        LogInfo("移動が停止しました。手動で続行してください")
-                        break
-                    end
-                    
-                    LogDebug("マーケットボードへ移動中... 距離: " .. string.format("%.2f", currentDistance))
-                    lastDistance = currentDistance
-                    Wait(2)
-                end
-                
-                if IsNearMarketBoard() then
-                    LogInfo("マーケットボード付近に到着（ターゲット可能距離）")
-                    yield("/vnav stop")  -- 移動停止
-                elseif IsTimeout(moveStartTime, moveTimeout) then
-                    LogWarn("移動タイムアウト - 手動でマーケットボードに移動してください")
-                    yield("/vnav stop")
-                else
-                    LogInfo("移動完了")
-                end
+                LogInfo("移動完了")
             end
         else
             LogWarn("vnavmeshが利用できません。手動でマーケットボードに移動してください")
@@ -917,8 +894,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v3.1.2 開始")
-    LogInfo("変更点: 複数移動方法の試行とスタック検出機能")
+    LogInfo("Treasure Hunt Automation v3.1.3 開始")
+    LogInfo("変更点: Vector3.Distanceによる正確なターゲット距離計算")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
