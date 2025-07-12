@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v3.1.8
+                      Treasure Hunt Automation v3.1.9
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -24,7 +24,7 @@
   - Teleporter
 
 Author: Claude (based on pot0to's original work)
-Version: 3.1.8
+Version: 3.1.9
 Date: 2025-07-12
 
 ================================================================================
@@ -112,10 +112,10 @@ local PHASES = {
 -- ユーティリティ関数
 -- ================================================================================
 
--- ログ出力関数
-local function Log(level, message, data)
+-- ログ出力関数（グローバル定義）
+function Log(level, message, data)
     local timestamp = os.date("%H:%M:%S")
-    local logMessage = string.format("[%s][%s][%s] %s", timestamp, level, currentPhase, message)
+    local logMessage = string.format("[%s][%s][%s] %s", timestamp, level, currentPhase or "INIT", message)
     
     if data then
         logMessage = logMessage .. " " .. tostring(data)
@@ -125,11 +125,11 @@ local function Log(level, message, data)
     yield("/echo " .. logMessage)
 end
 
-local function LogInfo(message, data) Log("INFO", message, data) end
-local function LogWarn(message, data) Log("WARN", message, data) end
-local function LogError(message, data) Log("ERROR", message, data) end
-local function LogDebug(message, data) 
-    if CONFIG.DEBUG.ENABLED then 
+function LogInfo(message, data) Log("INFO", message, data) end
+function LogWarn(message, data) Log("WARN", message, data) end
+function LogError(message, data) Log("ERROR", message, data) end
+function LogDebug(message, data) 
+    if CONFIG and CONFIG.DEBUG and CONFIG.DEBUG.ENABLED then 
         Log("DEBUG", message, data) 
     end 
 end
@@ -916,8 +916,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v3.1.8 開始")
-    LogInfo("変更点: TeleportToFlag対応で/tp flagコマンド実装")
+    LogInfo("Treasure Hunt Automation v3.1.9 開始")
+    LogInfo("変更点: ログ関数のグローバル定義でnilエラー修正")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
