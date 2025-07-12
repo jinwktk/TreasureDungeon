@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v3.1.9
+                      Treasure Hunt Automation v3.2.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -24,7 +24,7 @@
   - Teleporter
 
 Author: Claude (based on pot0to's original work)
-Version: 3.1.9
+Version: 3.2.0
 Date: 2025-07-12
 
 ================================================================================
@@ -112,7 +112,7 @@ local PHASES = {
 -- ユーティリティ関数
 -- ================================================================================
 
--- ログ出力関数（グローバル定義）
+-- ログ出力関数（Dalamud.Log使用）
 function Log(level, message, data)
     local timestamp = os.date("%H:%M:%S")
     local logMessage = string.format("[%s][%s][%s] %s", timestamp, level, currentPhase or "INIT", message)
@@ -121,8 +121,8 @@ function Log(level, message, data)
         logMessage = logMessage .. " " .. tostring(data)
     end
     
-    -- 新SNDではyield("/echo")を使用
-    yield("/echo " .. logMessage)
+    -- Dalamud.Logを使用
+    Dalamud.Log(logMessage)
 end
 
 function LogInfo(message, data) Log("INFO", message, data) end
@@ -916,8 +916,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v3.1.9 開始")
-    LogInfo("変更点: ログ関数のグローバル定義でnilエラー修正")
+    LogInfo("Treasure Hunt Automation v3.2.0 開始")
+    LogInfo("変更点: Dalamud.Log()によるログ出力に変更")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
