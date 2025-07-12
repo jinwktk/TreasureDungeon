@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v3.2.5
+                      Treasure Hunt Automation v3.2.6
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -24,7 +24,7 @@
   - Teleporter
 
 Author: Claude (based on pot0to's original work)
-Version: 3.2.5
+Version: 3.2.6
 Date: 2025-07-12
 
 ================================================================================
@@ -672,15 +672,56 @@ local function ExecuteMapPurchasePhase()
         yield("/gaction ディサイファー")
         Wait(3)
         
-        -- 解読後、フラグ地点にテレポート（手動指示）
-        LogInfo("フラグ地点にテレポートが必要です")
-        LogInfo("手動操作手順:")
-        LogInfo("1. 地図ウィンドウを開く（Mキー）")
-        LogInfo("2. 赤いフラグアイコンを右クリック")
-        LogInfo("3. 「テレポート」を選択")
-        yield("/echo 手動テレポート待機中...")
-        LogInfo("テレポート完了まで25秒待機します")
-        Wait(25)  -- 手動テレポートのための十分な時間
+        -- 解読後、フラグ地点にテレポート（新SND API使用）
+        LogInfo("フラグ地点にテレポート中...")
+        local teleportSuccess = SafeExecute(function()
+            -- 新SND API: Instances.Map.Flag.TerritoryIdを使用
+            if Instances and Instances.Map and Instances.Map.Flag and Instances.Map.Flag.TerritoryId then
+                local flagZone = Instances.Map.Flag.TerritoryId
+                LogInfo("フラグゾーンID: " .. tostring(flagZone))
+                
+                -- エーテライト情報を取得（新API対応）
+                local success, aetheryteData = SafeExecute(function()
+                    -- DataManager経由でエーテライト情報を取得
+                    if Instances and Instances.DataManager then
+                        local aetheryteSheet = Instances.DataManager.GetExcelSheet("Aetheryte")
+                        if aetheryteSheet and aetheryteSheet.GetRow then
+                            -- ゾーン内の最初のエーテライトを探す
+                            for i = 1, 200 do  -- 適当な範囲でエーテライトを検索
+                                local row = aetheryteSheet.GetRow(i)
+                                if row and row.Territory and row.Territory.Row == flagZone then
+                                    if row.PlaceName and row.PlaceName.Value and row.PlaceName.Value.Name then
+                                        return row.PlaceName.Value.Name.ToString()
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    return nil
+                end, "Failed to get aetheryte data")
+                
+                if success and aetheryteData then
+                    LogInfo("テレポート先エーテライト: " .. tostring(aetheryteData))
+                    yield("/echo テレポート実行: " .. tostring(aetheryteData))
+                    yield("/tp " .. tostring(aetheryteData))
+                    return true
+                else
+                    LogWarn("エーテライト情報の取得に失敗")
+                end
+            else
+                LogWarn("Instances.Map.Flag.TerritoryId が利用できません")
+            end
+            return false
+        end, "Failed to execute TeleportToFlag")
+        
+        if teleportSuccess then
+            LogInfo("エーテライトテレポート実行完了")
+            Wait(8)  -- テレポート完了待機
+        else
+            LogInfo("手動でフラグ地点にテレポートしてください")
+            LogInfo("手動操作: 地図を開いて赤いフラグをクリック→テレポート実行")
+            Wait(15)  -- 手動操作のための時間
+        end
         
         ChangePhase("MOVEMENT", "地図解読・テレポート完了")
         return
@@ -930,8 +971,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v3.2.5 開始")
-    LogInfo("変更点: 手動テレポート指示（詳細手順付き）")
+    LogInfo("Treasure Hunt Automation v3.2.6 開始")
+    LogInfo("変更点: Instances.Map.Flag.TerritoryId使用の自動テレポート")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
