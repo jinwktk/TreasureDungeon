@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v3.1.4
+                      Treasure Hunt Automation v3.1.5
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -24,7 +24,7 @@
   - Teleporter
 
 Author: Claude (based on pot0to's original work)
-Version: 3.1.4
+Version: 3.1.5
 Date: 2025-07-12
 
 ================================================================================
@@ -61,6 +61,14 @@ local CONFIG = {
         INTERACTION = 10,   -- インタラクションタイムアウト（10秒）
         TELEPORT = 15,      -- テレポートタイムアウト（15秒）
         DUNGEON = 600       -- ダンジョン全体タイムアウト（10分）
+    },
+    
+    -- オブジェクト別ターゲット可能距離設定
+    TARGET_DISTANCES = {
+        MARKET_BOARD = 3.0,    -- マーケットボード
+        TREASURE_CHEST = 5.0,  -- 宝箱
+        NPC = 4.0,             -- NPC
+        DEFAULT = 5.0          -- デフォルト
     },
     
     -- リトライ設定
@@ -333,13 +341,18 @@ local function GetDistanceToTarget()
     return success and distance or 999
 end
 
--- マーケットボードまでの距離チェック（ターゲット版）
-local function IsNearMarketBoard()
+-- ターゲットまでの距離チェック（設定可能版）
+local function IsNearTarget(objectType)
     local distance = GetDistanceToTarget()
-    local targetRange = 5.0  -- ターゲット可能距離
+    local targetRange = CONFIG.TARGET_DISTANCES[objectType] or CONFIG.TARGET_DISTANCES.DEFAULT
     
-    LogDebug("ターゲットまでの距離: " .. string.format("%.2f", distance))
+    LogDebug("ターゲットまでの距離: " .. string.format("%.2f", distance) .. " (設定距離: " .. string.format("%.1f", targetRange) .. ")")
     return distance <= targetRange and distance < 999
+end
+
+-- マーケットボードまでの距離チェック
+local function IsNearMarketBoard()
+    return IsNearTarget("MARKET_BOARD")
 end
 
 -- 現在地チェック関数（新SND API対応）
@@ -823,12 +836,26 @@ local function ExecuteDungeonPhase()
             Wait(0.5)
             
             if HasTarget() then
-                if HasPlugin("vnavmesh") then
-                    yield("/vnav movetarget")
+                -- 宝箱に近い場合は移動をスキップ
+                if IsNearTarget("TREASURE_CHEST") then
+                    LogDebug("宝箱に十分近いです - 移動をスキップ")
+                    yield("/interact")
+                    Wait(2)
+                else
+                    if HasPlugin("vnavmesh") then
+                        yield("/vnav movetarget")
+                        Wait(1)
+                        
+                        -- 宝箱に近づくまで待機
+                        local approachTimeout = 10
+                        local approachStartTime = os.clock()
+                        while not IsNearTarget("TREASURE_CHEST") and not IsTimeout(approachStartTime, approachTimeout) do
+                            Wait(0.5)
+                        end
+                    end
+                    yield("/interact")
+                    Wait(2)
                 end
-                Wait(1)
-                yield("/interact")
-                Wait(2)
             else
                 -- 前進探索
                 yield("/automove on")
@@ -899,8 +926,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v3.1.4 開始")
-    LogInfo("変更点: 手動距離計算によるVector3エラー修正")
+    LogInfo("Treasure Hunt Automation v3.1.5 開始")
+    LogInfo("変更点: オブジェクト別ターゲット距離設定（MB:3.0 宝箱:5.0）")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
