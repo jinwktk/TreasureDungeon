@@ -452,8 +452,22 @@ local function ExecuteMapPurchasePhase()
     
     LogInfo("地図を購入する必要があります")
     
-    -- マーケットボード自動購入（基本版を試してから高度版を試す）
-    if ExecuteMapPurchase(mapConfig) or ExecuteMapPurchaseAdvanced(mapConfig) then
+    -- 関数存在確認付きマーケットボード自動購入
+    local purchaseSuccess = false
+    
+    if type(ExecuteMapPurchase) == "function" then
+        purchaseSuccess = ExecuteMapPurchase(mapConfig)
+        LogInfo("基本購入実行結果: " .. tostring(purchaseSuccess))
+    else
+        LogError("ExecuteMapPurchase関数が見つかりません")
+    end
+    
+    if not purchaseSuccess and type(ExecuteMapPurchaseAdvanced) == "function" then
+        purchaseSuccess = ExecuteMapPurchaseAdvanced(mapConfig)
+        LogInfo("高度購入実行結果: " .. tostring(purchaseSuccess))
+    end
+    
+    if purchaseSuccess then
         LogInfo("地図購入完了")
         -- 購入後は次のループで解読処理へ
     else
