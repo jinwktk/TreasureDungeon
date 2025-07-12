@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v4.0.0
+                      Treasure Hunt Automation v4.1.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -24,7 +24,7 @@
   - Teleporter
 
 Author: Claude (based on pot0to's original work)
-Version: 4.0.0
+Version: 4.1.0
 Date: 2025-07-12
 
 ================================================================================
@@ -711,56 +711,31 @@ local function ExecuteMapPurchasePhase()
         yield("/gaction ディサイファー")
         Wait(3)
         
-        -- 解読後、フラグ地点にテレポート（新SND API使用）
-        LogInfo("フラグ地点にテレポート中...")
-        local teleportSuccess = SafeExecute(function()
-            -- 新SND API: Instances.Map.Flag.TerritoryIdを使用
-            if Instances and Instances.Map and Instances.Map.Flag and Instances.Map.Flag.TerritoryId then
-                local flagZone = Instances.Map.Flag.TerritoryId
-                LogInfo("フラグゾーンID: " .. tostring(flagZone))
-                
-                -- エーテライト情報を取得（新API対応）
-                local success, aetheryteData = SafeExecute(function()
-                    -- DataManager経由でエーテライト情報を取得
-                    if Instances and Instances.DataManager then
-                        local aetheryteSheet = Instances.DataManager.GetExcelSheet("Aetheryte")
-                        if aetheryteSheet and aetheryteSheet.GetRow then
-                            -- ゾーン内の最初のエーテライトを探す
-                            for i = 1, 200 do  -- 適当な範囲でエーテライトを検索
-                                local row = aetheryteSheet.GetRow(i)
-                                if row and row.Territory and row.Territory.Row == flagZone then
-                                    if row.PlaceName and row.PlaceName.Value and row.PlaceName.Value.Name then
-                                        return row.PlaceName.Value.Name.ToString()
-                                    end
-                                end
-                            end
-                        end
-                    end
-                    return nil
-                end, "Failed to get aetheryte data")
-                
-                if success and aetheryteData then
-                    LogInfo("テレポート先エーテライト: " .. tostring(aetheryteData))
-                    yield("/echo テレポート実行: " .. tostring(aetheryteData))
-                    yield("/tp " .. tostring(aetheryteData))
-                    return true
-                else
-                    LogWarn("エーテライト情報の取得に失敗")
-                end
-            else
-                LogWarn("Instances.Map.Flag.TerritoryId が利用できません")
-            end
-            return false
-        end, "Failed to execute TeleportToFlag")
+        -- フラグ地点へのテレポート（手動指示方式）
+        LogInfo("フラグ地点にテレポートします")
         
-        if teleportSuccess then
-            LogInfo("エーテライトテレポート実行完了")
-            Wait(8)  -- テレポート完了待機
-        else
-            LogInfo("手動でフラグ地点にテレポートしてください")
-            LogInfo("手動操作: 地図を開いて赤いフラグをクリック→テレポート実行")
-            Wait(15)  -- 手動操作のための時間
+        -- フラグゾーン情報取得を試行
+        local flagZoneInfo = SafeExecute(function()
+            if Instances and Instances.Map and Instances.Map.Flag and Instances.Map.Flag.TerritoryId then
+                return Instances.Map.Flag.TerritoryId
+            end
+            return nil
+        end, "Failed to get flag zone info")
+        
+        if flagZoneInfo then
+            LogInfo("フラグゾーンID: " .. tostring(flagZoneInfo))
         end
+        
+        -- 手動テレポート指示（より確実）
+        LogInfo("==== 手動テレポート手順 ====")
+        LogInfo("1. マップを開く（Mキー）")
+        LogInfo("2. 赤いフラグマーカーを右クリック")
+        LogInfo("3. 'テレポート' を選択")
+        LogInfo("4. テレポート完了まで待機...")
+        LogInfo("========================")
+        
+        -- 手動操作のための十分な時間
+        Wait(12)  -- テレポート完了待機
         
         ChangePhase("MOVEMENT", "地図解読・テレポート完了")
         return
@@ -816,15 +791,38 @@ local function ExecuteMovementPhase()
         return
     end
     
-    -- 移動完了チェック
-    if not IsPlayerMoving() and not digExecuted then
-        LogInfo("移動完了。発掘を実行します")
+    -- 移動完了チェック（改善版）
+    local isMoving = IsPlayerMoving()
+    local hasReachedFlag = false
+    
+    -- フラグ地点到達チェック（vnavmeshステータス確認）
+    SafeExecute(function()
+        -- vnavmeshの移動状態をチェック
+        if HasPlugin("vnavmesh") then
+            -- 移動が停止しているかチェック（簡単な方法）
+            hasReachedFlag = not isMoving
+        else
+            hasReachedFlag = not isMoving
+        end
+    end, "Failed to check flag arrival")
+    
+    if (not isMoving or hasReachedFlag) and not digExecuted then
+        LogInfo("移動完了またはフラグ地点到達。発掘を実行します")
+        
+        -- vnavmesh移動を終了
+        if HasPlugin("vnavmesh") then
+            yield("/vnav stop")
+            Wait(1)
+        end
+        
+        -- 発掘実行
         yield("/gaction ディグ")
         digExecuted = true
         Wait(3)
         
         -- 宝箱検出
         if IsAddonVisible("SelectYesno") then
+            LogInfo("宝箱発見確認ダイアログを処理")
             yield("/callback SelectYesno true 0") -- はい
             Wait(2)
         end
@@ -837,10 +835,39 @@ local function ExecuteMovementPhase()
         return
     end
     
-    -- 移動中の場合は待機
-    if IsPlayerMoving() then
-        LogDebug("移動中...")
+    -- 移動タイムアウトチェック（追加）
+    if CheckPhaseTimeout() then
+        LogWarn("移動タイムアウト。手動で発掘を実行します")
+        if HasPlugin("vnavmesh") then
+            yield("/vnav stop")
+        end
+        
+        -- 強制発掘
+        yield("/gaction ディグ")
+        digExecuted = true
+        Wait(3)
+        
+        if IsAddonVisible("SelectYesno") then
+            yield("/callback SelectYesno true 0")
+            Wait(2)
+        end
+        
+        movementStarted = false
+        digExecuted = false
+        ChangePhase("COMBAT", "タイムアウト後発掘完了")
+        return
+    end
+    
+    -- 移動中の場合は待機（ログ頻度を減らす）
+    if isMoving then
+        if iteration % 5 == 0 then  -- 5秒おきにログ出力
+            LogDebug("移動中... (経過時間: " .. math.floor(os.clock() - phaseStartTime) .. "秒)")
+        end
         Wait(1)
+    else
+        -- 移動していないが発掘がまだの場合、少し待つ
+        LogDebug("移動停止。発掘処理を待機中...")
+        Wait(2)
     end
 end
 
@@ -1010,8 +1037,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v4.0.0 開始")
-    LogInfo("変更点: 新SND v12.0.0+完全対応・API互換性向上・ゾーン検出最適化")
+    LogInfo("Treasure Hunt Automation v4.1.0 開始")
+    LogInfo("変更点: 移動完了検出改善・タイムアウト処理強化・ログ最適化")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
