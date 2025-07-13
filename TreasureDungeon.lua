@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v6.46.0
+                      Treasure Hunt Automation v6.47.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -23,6 +23,11 @@
   - RSR (Rotation Solver Reborn)
   - AutoHook
   - Teleporter
+
+変更履歴 v6.47.0:
+  - Player.Status APIエラー修正：.NET Listのインデックスベースアクセスに変更
+  - 食事管理システム安定化：pairs()からfor i=0,Count-1への修正
+  - ステータス取得エラー解決：StatusWrapper型の正しいアクセス方法実装
 
 変更履歴 v6.46.0:
   - インベントリ管理システム実装：Inventory.GetFreeInventorySlots()で空きスロット監視
@@ -782,8 +787,10 @@ local FOOD_STATUS_ID = 48
 local function GetFoodRemainingTime()
     local success, remainingTime = SafeExecute(function()
         if Player and Player.Status then
-            for _, status in pairs(Player.Status) do
-                if status.StatusId == FOOD_STATUS_ID then
+            -- .NET Listなのでインデックスベースでアクセス
+            for i = 0, Player.Status.Count - 1 do
+                local status = Player.Status[i]
+                if status and status.StatusId == FOOD_STATUS_ID then
                     return status.RemainingTime or 0
                 end
             end
@@ -2630,8 +2637,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v6.46.0 開始")
-    LogInfo("変更点: インベントリ管理システム実装・自動アイテム破棄で満杯防止")
+    LogInfo("Treasure Hunt Automation v6.47.0 開始")
+    LogInfo("変更点: Player.Status APIエラー修正・食事管理システム安定化")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
