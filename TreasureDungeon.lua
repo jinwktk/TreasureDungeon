@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v6.43.0
+                      Treasure Hunt Automation v6.44.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -23,6 +23,11 @@
   - RSR (Rotation Solver Reborn)
   - AutoHook
   - Teleporter
+
+変更履歴 v6.44.0:
+  - ダンジョン判定優先度変更：キャラクターコンディション56と34を最優先チェック
+  - ゾーンIDフォールバック：キャラクターコンディションで判定できない場合のみゾーンID使用
+  - 判定精度向上：2つのコンディションで確実なダンジョン状態検知
 
 変更履歴 v6.43.0:
   - ダンジョン判定強化：ゾーンID 794（ウズネアカナル祭殿）をダンジョンリストに追加
@@ -595,16 +600,24 @@ end
 
 local function IsInDuty()
     local success, result = SafeExecute(function()
-        -- GetCharacterCondition(56)でダンジョン中判定 (boundByDuty56)
+        -- 最優先: GetCharacterCondition(56)と(34)でダンジョン中判定
         if GetCharacterCondition and type(GetCharacterCondition) == "function" then
-            local dutyCondition = GetCharacterCondition(56)
-            LogDebug("ダンジョン状態判定 - GetCharacterCondition(56/boundByDuty56): " .. tostring(dutyCondition))
-            if dutyCondition then
+            local dutyCondition56 = GetCharacterCondition(56)
+            local dutyCondition34 = GetCharacterCondition(34)
+            
+            LogDebug("ダンジョン状態判定 - GetCharacterCondition(56): " .. tostring(dutyCondition56) .. 
+                    ", GetCharacterCondition(34): " .. tostring(dutyCondition34))
+            
+            -- どちらか一つでもtrueならダンジョン内と判定
+            if dutyCondition56 or dutyCondition34 then
+                LogDebug("キャラクターコンディションでダンジョン判定: true")
                 return true
+            else
+                LogDebug("キャラクターコンディションでダンジョン判定: false - ゾーンIDフォールバックに移行")
             end
         end
         
-        -- フォールバック: ゾーンIDベース判定（トレジャーダンジョンゾーンIDリスト）
+        -- フォールバック: ゾーンIDベース判定（キャラクターコンディションで判定できない場合のみ）
         local zoneId = GetZoneID and GetZoneID() or 0
         local treasureDungeonZones = {
             712, -- 従来のトレジャーダンジョン
@@ -2483,8 +2496,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v6.43.0 開始")
-    LogInfo("変更点: ダンジョン判定強化・動的ターゲット調整でダンジョン外皮袋除外")
+    LogInfo("Treasure Hunt Automation v6.44.0 開始")
+    LogInfo("変更点: ダンジョン判定優先度変更・キャラクターコンディション56/34優先でゾーンIDフォールバック")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
