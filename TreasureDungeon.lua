@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v6.33.0
+                      Treasure Hunt Automation v6.34.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -23,6 +23,11 @@
   - RSR (Rotation Solver Reborn)
   - AutoHook
   - Teleporter
+
+変更履歴 v6.34.0:
+  - vnavmeshパス計算中の重複実行防止：PathfindInProgress()チェック追加
+  - IPC.vnavmesh.PathfindAndMoveTo実行前の状態確認：2重計算防止機能実装
+  - 移動コマンド競合解決：計算中は新しいコマンドをスキップして安定性向上
 
 変更履歴 v6.33.0:
   - フラグ距離計算を2D水平距離に変更：高さ（Z座標）を除外した計算
@@ -1201,6 +1206,12 @@ local function ExecuteMovementPhase()
                 
                 local moveSuccess = SafeExecute(function()
                     if IPC and IPC.vnavmesh and IPC.vnavmesh.PathfindAndMoveTo then
+                        -- パス計算中チェック：計算中なら実行をスキップ
+                        if IPC.vnavmesh.PathfindInProgress and IPC.vnavmesh.PathfindInProgress() then
+                            LogDebug("パス計算中のため、新しい移動コマンドをスキップします")
+                            return true  -- スキップするが成功として扱う
+                        end
+                        
                         -- マウント状態確認してfly設定
                         local shouldFly = IsPlayerMounted()
                         
@@ -1368,6 +1379,12 @@ local function ExecuteMovementPhase()
                     
                     local moveSuccess = SafeExecute(function()
                         if IPC and IPC.vnavmesh and IPC.vnavmesh.PathfindAndMoveTo then
+                            -- パス計算中チェック：計算中なら実行をスキップ
+                            if IPC.vnavmesh.PathfindInProgress and IPC.vnavmesh.PathfindInProgress() then
+                                LogDebug("パス計算中のため、移動再開コマンドをスキップします")
+                                return true  -- スキップするが成功として扱う
+                            end
+                            
                             -- マウント状態に応じたfly設定
                             local shouldFly = IsPlayerMounted() and CanFly()
                             IPC.vnavmesh.PathfindAndMoveTo(flagPos, shouldFly)
@@ -1448,6 +1465,12 @@ local function ExecuteMovementPhase()
                     LogInfo("フラグ座標取得成功 - 緊急再移動開始")
                     local moveSuccess = SafeExecute(function()
                         if IPC and IPC.vnavmesh and IPC.vnavmesh.PathfindAndMoveTo then
+                            -- パス計算中チェック：計算中なら実行をスキップ
+                            if IPC.vnavmesh.PathfindInProgress and IPC.vnavmesh.PathfindInProgress() then
+                                LogDebug("パス計算中のため、緊急再移動コマンドをスキップします")
+                                return true  -- スキップするが成功として扱う
+                            end
+                            
                             IPC.vnavmesh.PathfindAndMoveTo(flagPos, true)
                             LogDebug("vnavmesh緊急再移動開始 (IPC API)")
                             return true
@@ -2338,8 +2361,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v6.33.0 開始")
-    LogInfo("変更点: フラグ距離2D水平計算・高さ除外・垂直誤差排除・精密到達判定")
+    LogInfo("Treasure Hunt Automation v6.34.0 開始")
+    LogInfo("変更点: vnavmeshパス計算中重複防止・PathfindInProgressチェック・移動コマンド競合解決")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
