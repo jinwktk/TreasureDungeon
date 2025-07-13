@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v6.32.0
+                      Treasure Hunt Automation v6.33.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -23,6 +23,10 @@
   - RSR (Rotation Solver Reborn)
   - AutoHook
   - Teleporter
+
+変更履歴 v6.33.0:
+  - フラグ距離計算を2D水平距離に変更：高さ（Z座標）を除外した計算
+  - 3D距離から2D距離への修正：垂直方向の誤差を排除して精密な到達判定
 
 変更履歴 v6.32.0:
   - マウント召喚コマンド修正：/gaction mountから/mount 高機動型パワーローダーに変更
@@ -797,13 +801,12 @@ local function GetDistanceToFlag()
             return 999
         end
         
-        -- 3D距離計算
+        -- 2D距離計算（高さを除外）
         local dx = flagPos.X - playerPos.X
         local dy = flagPos.Y - playerPos.Y
-        local dz = flagPos.Z - (playerPos.Z or 0)
         
-        local distance = math.sqrt(dx * dx + dy * dy + dz * dz)
-        LogDebug("フラグからの距離: " .. string.format("%.2f", distance) .. " (3D計算)")
+        local distance = math.sqrt(dx * dx + dy * dy)
+        LogDebug("フラグからの距離: " .. string.format("%.2f", distance) .. " (2D水平計算)")
         return distance
     end, "Failed to calculate flag distance")
     
@@ -2335,8 +2338,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v6.32.0 開始")
-    LogInfo("変更点: マウント召喚コマンド修正・高機動型パワーローダー指定・確実な召喚処理")
+    LogInfo("Treasure Hunt Automation v6.33.0 開始")
+    LogInfo("変更点: フラグ距離2D水平計算・高さ除外・垂直誤差排除・精密到達判定")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
