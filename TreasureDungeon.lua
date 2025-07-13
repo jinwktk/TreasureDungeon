@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v6.24.0
+                      Treasure Hunt Automation v6.25.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -23,6 +23,12 @@
   - RSR (Rotation Solver Reborn)
   - AutoHook
   - Teleporter
+
+変更履歴 v6.25.0:
+  - マウント状態確認機能：インタラクト前の自動降車処理実装
+  - IPC.vnavmesh.PathfindAndMoveTo完全対応：マウント状態に応じたfly自動設定
+  - CanMount/CanFly判定機能：GetCharacterCondition(4/26/27)による状態確認
+  - 移動最適化：マウント未搭乗時の自動召喚・飛行不可時の地上移動自動切替
 
 変更履歴 v6.24.0:
   - ドマ反乱軍の門兵接近方式変更：vnav stop + flytarget方式に最適化
@@ -413,6 +419,31 @@ local function SummonPowerLoader()
     end, "Failed to summon power loader")
     
     return success
+end
+
+-- マウント・飛行能力判定
+local function CanMount()
+    local success, result = SafeExecute(function()
+        if GetCharacterCondition then
+            -- マウント可能条件: 戦闘中でない、キャスト中でない、移動可能状態
+            local inCombat = GetCharacterCondition(26) or false
+            local casting = GetCharacterCondition(27) or false
+            return not inCombat and not casting
+        end
+        return true  -- 関数がない場合は常に可能とする
+    end, "Failed to check mount availability")
+    return success and result or false
+end
+
+local function CanFly()
+    local success, result = SafeExecute(function()
+        if GetCharacterCondition then
+            -- 飛行可能条件: GetCharacterCondition(4)で飛行可能判定
+            return GetCharacterCondition(4) or false
+        end
+        return true  -- 関数がない場合は常に可能とする
+    end, "Failed to check fly availability")
+    return success and result or false
 end
 
 -- インベントリ管理
@@ -1134,8 +1165,26 @@ local function ExecuteMovementPhase()
                 
                 local moveSuccess = SafeExecute(function()
                     if IPC and IPC.vnavmesh and IPC.vnavmesh.PathfindAndMoveTo then
-                        IPC.vnavmesh.PathfindAndMoveTo(flagPos, true) -- true = 飛行モード
-                        LogDebug("vnavmesh飛行移動開始 (IPC API): PathfindAndMoveTo")
+                        -- マウント状態確認してfly設定
+                        local shouldFly = IsMounted()
+                        
+                        -- マウント乗ってない場合は乗る
+                        if not shouldFly then
+                            if CanMount() then
+                                LogInfo("マウント召喚中...")
+                                yield("/gaction mount") 
+                                Wait(3)
+                                shouldFly = IsMounted()
+                            end
+                        end
+                        
+                        -- 飛行できない場合はshouldFly=false
+                        if shouldFly and not CanFly() then
+                            shouldFly = false
+                        end
+                        
+                        IPC.vnavmesh.PathfindAndMoveTo(flagPos, shouldFly)
+                        LogDebug("vnavmesh移動開始 (IPC API): PathfindAndMoveTo, fly=" .. tostring(shouldFly))
                         return true
                     else
                         -- フォールバック: コマンド実行
@@ -1232,6 +1281,13 @@ local function ExecuteMovementPhase()
                     while IsVNavMoving() and not IsTimeout(approachStartTime, 15) do
                         LogDebug("門兵flytarget接近中... 経過時間: " .. (os.time() - approachStartTime) .. "秒")
                         Wait(1)
+                    end
+                    
+                    -- マウント状態チェック・降車
+                    if IsMounted() then
+                        LogInfo("マウントから降車中...")
+                        yield("/dismount")
+                        Wait(2)
                     end
                     
                     -- インタラクト実行
@@ -2223,8 +2279,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v6.24.0 開始")
-    LogInfo("変更点: ドマ反乱軍の門兵vnav stop + flytarget方式・フラグ制御削除")
+    LogInfo("Treasure Hunt Automation v6.25.0 開始")
+    LogInfo("変更点: マウント状態確認・IPC.vnavmesh.PathfindAndMoveTo最適化・fly自動設定")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
