@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v6.38.0
+                      Treasure Hunt Automation v6.39.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -23,6 +23,11 @@
   - RSR (Rotation Solver Reborn)
   - AutoHook
   - Teleporter
+
+変更履歴 v6.39.0:
+  - Vector2座標軸修正：Vector2.Y→Z座標で455yalm誤判定解決
+  - プレイヤーY座標使用：Vector2はX,Z座標のみなのでプレイヤーY座標を補完
+  - 座標マッピング正規化：正しい3D座標構成でフラグ距離計算精度向上
 
 変更履歴 v6.38.0:
   - Vector3 Y座標0.0問題修正：Y座標が0.0の場合Vector2にフォールバック機能実装
@@ -785,14 +790,17 @@ local function GetDistanceToFlag()
             LogDebug("Vector3のY座標が0.0のため、Vector2にフォールバック: (" .. tostring(Instances.Map.Flag.Vector3.X) .. ", " .. tostring(Instances.Map.Flag.Vector3.Y) .. ", " .. tostring(Instances.Map.Flag.Vector3.Z) .. ")")
             if Instances.Map.Flag.Vector2 then
                 local flagVec2 = Instances.Map.Flag.Vector2
-                flagPos = {X = flagVec2.X, Y = flagVec2.Y, Z = 0}
-                LogDebug("Vector2フォールバック成功: (" .. tostring(flagPos.X) .. ", " .. tostring(flagPos.Y) .. ")")
+                -- Vector2は実際にはX,Z座標（Y=高度は不明なのでプレイヤーY座標を使用）
+                local playerPos = Entity.Player.Position
+                flagPos = {X = flagVec2.X, Y = playerPos.Y, Z = flagVec2.Y}
+                LogDebug("Vector2フォールバック成功（X,Z+プレイヤーY使用）: (" .. tostring(flagPos.X) .. ", " .. tostring(flagPos.Y) .. ", " .. tostring(flagPos.Z) .. ")")
             end
         elseif Instances.Map.Flag.Vector2 then
-            -- Vector2が利用可能な場合（2D座標）
+            -- Vector2が利用可能な場合（X,Z座標なのでプレイヤーY座標を使用）
             local flagVec2 = Instances.Map.Flag.Vector2
-            flagPos = {X = flagVec2.X, Y = flagVec2.Y, Z = 0}
-            LogDebug("Vector2を使用してフラグ座標を取得: (" .. tostring(flagPos.X) .. ", " .. tostring(flagPos.Y) .. ")")
+            local playerPos = Entity.Player.Position
+            flagPos = {X = flagVec2.X, Y = playerPos.Y, Z = flagVec2.Y}
+            LogDebug("Vector2を使用してフラグ座標を取得（X,Z+プレイヤーY使用）: (" .. tostring(flagPos.X) .. ", " .. tostring(flagPos.Y) .. ", " .. tostring(flagPos.Z) .. ")")
         elseif Instances.Map.Flag.XFloat and Instances.Map.Flag.YFloat then
             -- Float座標が利用可能な場合
             flagPos = {
@@ -2400,8 +2408,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v6.38.0 開始")
-    LogInfo("変更点: Vector3 Y座標0.0問題修正・Vector2フォールバック機能実装")
+    LogInfo("Treasure Hunt Automation v6.39.0 開始")
+    LogInfo("変更点: Vector2座標軸修正・プレイヤーY座標補完で距離計算精度向上")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
