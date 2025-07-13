@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v6.34.0
+                      Treasure Hunt Automation v6.35.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -23,6 +23,11 @@
   - RSR (Rotation Solver Reborn)
   - AutoHook
   - Teleporter
+
+変更履歴 v6.35.0:
+  - vnavmesh動作中の包括的重複防止：IsVNavMoving()による完全な競合回避
+  - パス計算中＋移動実行中両方の状態チェック：より安定した移動制御実装
+  - 移動コマンド競合完全解決：動作中は一切の新規コマンドをスキップ
 
 変更履歴 v6.34.0:
   - vnavmeshパス計算中の重複実行防止：PathfindInProgress()チェック追加
@@ -1206,9 +1211,9 @@ local function ExecuteMovementPhase()
                 
                 local moveSuccess = SafeExecute(function()
                     if IPC and IPC.vnavmesh and IPC.vnavmesh.PathfindAndMoveTo then
-                        -- パス計算中チェック：計算中なら実行をスキップ
-                        if IPC.vnavmesh.PathfindInProgress and IPC.vnavmesh.PathfindInProgress() then
-                            LogDebug("パス計算中のため、新しい移動コマンドをスキップします")
+                        -- パス計算中・移動中チェック：動作中なら実行をスキップ
+                        if IsVNavMoving() then
+                            LogDebug("vnavmesh動作中のため、新しい移動コマンドをスキップします")
                             return true  -- スキップするが成功として扱う
                         end
                         
@@ -1379,9 +1384,9 @@ local function ExecuteMovementPhase()
                     
                     local moveSuccess = SafeExecute(function()
                         if IPC and IPC.vnavmesh and IPC.vnavmesh.PathfindAndMoveTo then
-                            -- パス計算中チェック：計算中なら実行をスキップ
-                            if IPC.vnavmesh.PathfindInProgress and IPC.vnavmesh.PathfindInProgress() then
-                                LogDebug("パス計算中のため、移動再開コマンドをスキップします")
+                            -- パス計算中・移動中チェック：動作中なら実行をスキップ
+                            if IsVNavMoving() then
+                                LogDebug("vnavmesh動作中のため、移動再開コマンドをスキップします")
                                 return true  -- スキップするが成功として扱う
                             end
                             
@@ -1465,9 +1470,9 @@ local function ExecuteMovementPhase()
                     LogInfo("フラグ座標取得成功 - 緊急再移動開始")
                     local moveSuccess = SafeExecute(function()
                         if IPC and IPC.vnavmesh and IPC.vnavmesh.PathfindAndMoveTo then
-                            -- パス計算中チェック：計算中なら実行をスキップ
-                            if IPC.vnavmesh.PathfindInProgress and IPC.vnavmesh.PathfindInProgress() then
-                                LogDebug("パス計算中のため、緊急再移動コマンドをスキップします")
+                            -- パス計算中・移動中チェック：動作中なら実行をスキップ
+                            if IsVNavMoving() then
+                                LogDebug("vnavmesh動作中のため、緊急再移動コマンドをスキップします")
                                 return true  -- スキップするが成功として扱う
                             end
                             
@@ -2361,8 +2366,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v6.34.0 開始")
-    LogInfo("変更点: vnavmeshパス計算中重複防止・PathfindInProgressチェック・移動コマンド競合解決")
+    LogInfo("Treasure Hunt Automation v6.35.0 開始")
+    LogInfo("変更点: vnavmesh動作中包括的重複防止・IsVNavMovingチェック・移動コマンド競合完全解決")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
