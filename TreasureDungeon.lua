@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v6.44.0
+                      Treasure Hunt Automation v6.46.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -23,6 +23,16 @@
   - RSR (Rotation Solver Reborn)
   - AutoHook
   - Teleporter
+
+変更履歴 v6.46.0:
+  - インベントリ管理システム実装：Inventory.GetFreeInventorySlots()で空きスロット監視
+  - 自動アイテム破棄：空き5マス以下で/discardall自動実行
+  - インベントリ満杯処理停止：破棄後も5マス以下なら安全停止
+
+変更履歴 v6.45.0:
+  - 食事管理システム実装：Player.Statusで食事効果の残り時間を監視
+  - 自動食事使用：高級マテ茶クッキー <hq>を5分未満で自動再使用
+  - 全フェーズ食事チェック：各フェーズ開始時とメインループで定期チェック
 
 変更履歴 v6.44.0:
   - ダンジョン判定優先度変更：キャラクターコンディション56と34を最優先チェック
@@ -762,6 +772,98 @@ local function CheckPrerequisites()
 end
 
 -- ================================================================================
+-- 食事管理関数
+-- ================================================================================
+
+-- 食事効果のステータスID (Well Fed効果)
+local FOOD_STATUS_ID = 48
+
+-- 食事効果の残り時間をチェック（秒）
+local function GetFoodRemainingTime()
+    local success, remainingTime = SafeExecute(function()
+        if Player and Player.Status then
+            for _, status in pairs(Player.Status) do
+                if status.StatusId == FOOD_STATUS_ID then
+                    return status.RemainingTime or 0
+                end
+            end
+        end
+        return 0
+    end, "Failed to check food remaining time")
+    
+    return success and remainingTime or 0
+end
+
+-- 食事効果をチェックして必要に応じて使用
+local function CheckAndUseFoodItem()
+    local remainingTime = GetFoodRemainingTime()
+    local remainingMinutes = math.floor(remainingTime / 60)
+    
+    if remainingTime <= 0 then
+        LogInfo("食事効果なし - 高級マテ茶クッキー <hq>を使用")
+        SafeExecute(function()
+            yield("/item 高級マテ茶クッキー <hq>")
+        end, "Failed to use food item")
+        Wait(3)
+    elseif remainingTime < 300 then  -- 5分未満の場合
+        LogInfo("食事効果残り時間: " .. remainingMinutes .. "分 - 高級マテ茶クッキー <hq>を再使用")
+        SafeExecute(function()
+            yield("/item 高級マテ茶クッキー <hq>")
+        end, "Failed to use food item")
+        Wait(3)
+    else
+        LogDebug("食事効果残り時間: " .. remainingMinutes .. "分 - 使用不要")
+    end
+end
+
+-- ================================================================================
+-- インベントリ管理関数
+-- ================================================================================
+
+-- インベントリの空きスロット数をチェック
+local function GetFreeInventorySlots()
+    local success, freeSlots = SafeExecute(function()
+        if Inventory and Inventory.GetFreeInventorySlots then
+            return Inventory.GetFreeInventorySlots()
+        end
+        return 999  -- 取得失敗時は大きな値を返してチェックをスキップ
+    end, "Failed to get free inventory slots")
+    
+    return success and freeSlots or 999
+end
+
+-- インベントリ管理：空きが5マス以下なら自動整理
+local function CheckAndManageInventory()
+    local freeSlots = GetFreeInventorySlots()
+    
+    if freeSlots <= 5 then
+        LogWarn("インベントリ空きスロット: " .. freeSlots .. "マス - アイテム自動破棄を実行")
+        
+        SafeExecute(function()
+            yield("/discardall")
+        end, "Failed to discard items")
+        
+        Wait(5)  -- 破棄処理完了を待機
+        
+        -- 破棄後の空きスロット数を再確認
+        local newFreeSlots = GetFreeInventorySlots()
+        LogInfo("アイテム破棄後の空きスロット: " .. newFreeSlots .. "マス")
+        
+        if newFreeSlots <= 5 then
+            LogError("インベントリが満杯です。処理を停止します。手動でアイテムを整理してください。")
+            ChangePhase("ERROR", "インベントリ満杯")
+            return false
+        else
+            LogInfo("インベントリ整理完了 - 処理を継続します")
+            return true
+        end
+    else
+        LogDebug("インベントリ空きスロット: " .. freeSlots .. "マス - 管理不要")
+        return true
+    end
+end
+
+-- ================================================================================
 -- 地図購入ヘルパー関数
 -- ================================================================================
 
@@ -1038,6 +1140,14 @@ local function ExecuteInitPhase()
         return
     end
     
+    -- 食事効果チェック・使用
+    CheckAndUseFoodItem()
+    
+    -- インベントリ管理チェック
+    if not CheckAndManageInventory() then
+        return  -- インベントリ満杯の場合は処理停止
+    end
+    
     -- 現在状態を検出して適切なフェーズに移行
     local detectedPhase = DetectCurrentState()
     ChangePhase(detectedPhase, "現在状態検出による自動フェーズ移行")
@@ -1045,6 +1155,14 @@ end
 
 -- 地図購入フェーズ
 local function ExecuteMapPurchasePhase()
+    -- 食事効果チェック（フェーズ開始時）
+    CheckAndUseFoodItem()
+    
+    -- インベントリ管理チェック
+    if not CheckAndManageInventory() then
+        return  -- インベントリ満杯の場合は処理停止
+    end
+    
     local mapConfig = CONFIG.MAPS[CONFIG.MAP_TYPE]
     local mapCount = GetItemCount(mapConfig.itemId)
     
@@ -1255,6 +1373,14 @@ end
 local function ExecuteMovementPhase()
     if not movementStarted then
         LogInfo("宝の場所への移動を開始します")
+        
+        -- 食事効果チェック（移動開始時）
+        CheckAndUseFoodItem()
+        
+        -- インベントリ管理チェック
+        if not CheckAndManageInventory() then
+            return  -- インベントリ満杯の場合は処理停止
+        end
         
         -- vnavmeshの準備状態確認
         if not IsVNavReady() then
@@ -2358,6 +2484,14 @@ end
 local function ExecuteDungeonPhase()
     LogInfo("ダンジョン探索を開始します")
     
+    -- 食事効果チェック（ダンジョン開始時）
+    CheckAndUseFoodItem()
+    
+    -- インベントリ管理チェック
+    if not CheckAndManageInventory() then
+        return  -- インベントリ満杯の場合は処理停止
+    end
+    
     -- ダンジョンタイプ検出・表示
     local dungeonType, dungeonDescription = DetectDungeonType()
     if dungeonType then
@@ -2496,14 +2630,22 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v6.44.0 開始")
-    LogInfo("変更点: ダンジョン判定優先度変更・キャラクターコンディション56/34優先でゾーンIDフォールバック")
+    LogInfo("Treasure Hunt Automation v6.46.0 開始")
+    LogInfo("変更点: インベントリ管理システム実装・自動アイテム破棄で満杯防止")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
     
     while not stopRequested and iteration < maxIterations do
         iteration = iteration + 1
+        
+        -- 定期的な食事効果・インベントリチェック（10イテレーションごと）
+        if iteration % 10 == 0 then
+            CheckAndUseFoodItem()
+            if not CheckAndManageInventory() then
+                break  -- インベントリ満杯の場合はループを終了
+            end
+        end
         
         -- タイムアウトチェック
         if CheckPhaseTimeout() then
