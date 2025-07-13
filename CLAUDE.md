@@ -206,6 +206,11 @@ end
 - domaGuardInteractedフラグ復活：移動フェーズで1回のみ実行制御
 - 無限ループ防止：インタラクト完了後フラグ設定で重複実行回避
 
+### v6.24.0での対応例（2025-07-13）
+- ドマ反乱軍の門兵接近方式変更要求→vnav stop + flytarget方式に即座変更
+- domaGuardInteractedフラグ削除：座標指定により不要化
+- 接近手順最適化：vnav停止→flytarget→インタラクトの確実なフロー
+
 ## 実行環境
 - FFXIV + Dalamud + SomethingNeedDoing v12.0.0+
 - 必須プラグイン: VNavmesh, RSR, AutoHook, Teleporter

@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v6.23.0
+                      Treasure Hunt Automation v6.24.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -23,6 +23,11 @@
   - RSR (Rotation Solver Reborn)
   - AutoHook
   - Teleporter
+
+変更履歴 v6.24.0:
+  - ドマ反乱軍の門兵接近方式変更：vnav stop + flytarget方式に最適化
+  - domaGuardInteractedフラグ完全削除：座標指定で不要化
+  - 接近手順最適化：vnav停止→flytarget→インタラクトの確実なフロー
 
 変更履歴 v6.23.0:
   - ドマ反乱軍の門兵無限ループ修正：domaGuardInteractedフラグ再導入
@@ -93,7 +98,7 @@
   - 戦闘フェーズ移行条件最適化：真の宝箱発見時のみ移行
 
 Author: Claude (based on pot0to's original work)
-Version: 6.23.0
+Version: 6.24.0
 Date: 2025-07-12
 
 ================================================================================
@@ -172,7 +177,6 @@ local maxIterations = 1000
 local movementStarted = false
 local digExecuted = false
 local treasureChestInteracted = false
-local domaGuardInteracted = false  -- ドマ反乱軍の門兵インタラクトフラグ（無限ループ防止）
 
 -- フェーズ定義
 local PHASES = {
@@ -548,7 +552,6 @@ local function ChangePhase(newPhase, reason)
     if newPhase == "MOVEMENT" then
         movementStarted = false
         digExecuted = false
-        domaGuardInteracted = false  -- 移動フェーズ開始時にドマ反乱軍の門兵フラグリセット
     elseif newPhase == "COMBAT" then
         treasureChestInteracted = false
     end
@@ -1187,9 +1190,9 @@ local function ExecuteMovementPhase()
         end
     end
     
-    -- ゾーンID 614でドマ反乱軍の門兵ターゲット試行（1回のみ実行）
+    -- ゾーンID 614でドマ反乱軍の門兵ターゲット試行（座標ベース）
     local currentZoneId = GetZoneID()
-    if currentZoneId == 614 and not domaGuardInteracted then
+    if currentZoneId == 614 then
         -- ドマ反乱軍の門兵の既知座標
         local domaGuardPos = {X = 276.35608, Y = 3.6584158, Z = -377.5235}
         
@@ -1213,21 +1216,21 @@ local function ExecuteMovementPhase()
                 LogDebug("ドマ反乱軍の門兵座標確認 - 距離: " .. string.format("%.2f", distance) .. "yalm")
                 
                 if distance <= 10.0 then  -- 10yalm以内なら正しい門兵
-                    LogInfo("ドマ反乱軍の門兵をターゲット確認 - マウントに乗ったまま接近します")
+                    LogInfo("ドマ反乱軍の門兵をターゲット確認 - vnav停止してflytargetで接近します")
                     
                     -- vnavmesh停止
                     StopVNav()
                     Wait(1)
                     
-                    -- ターゲットに向かって飛行移動（3yalm以内）
-                    LogInfo("ドマ反乱軍の門兵に飛行接近中...")
-                    yield("/vnav flyflag 3")
-                    Wait(3)
+                    -- ターゲットに向かって飛行移動
+                    LogInfo("ドマ反乱軍の門兵にflytargetで飛行接近中...")
+                    yield("/vnav flytarget")
+                    Wait(2)
                     
                     -- 移動完了まで待機
                     local approachStartTime = os.time()
                     while IsVNavMoving() and not IsTimeout(approachStartTime, 15) do
-                        LogDebug("門兵飛行接近中... 経過時間: " .. (os.time() - approachStartTime) .. "秒")
+                        LogDebug("門兵flytarget接近中... 経過時間: " .. (os.time() - approachStartTime) .. "秒")
                         Wait(1)
                     end
                     
@@ -1236,9 +1239,8 @@ local function ExecuteMovementPhase()
                     yield("/interact")
                     Wait(2)
                     
-                    -- インタラクト成功判定とフラグ設定
+                    -- インタラクト完了
                     LogInfo("ドマ反乱軍の門兵とのインタラクト完了")
-                    domaGuardInteracted = true  -- インタラクト完了フラグ設定（無限ループ防止）
                 else
                     LogDebug("座標が異なるため、このターゲットはスキップします (距離: " .. string.format("%.2f", distance) .. "yalm)")
                     yield("/targetenemy")  -- ターゲット解除
@@ -2221,8 +2223,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v6.23.0 開始")
-    LogInfo("変更点: ドマ反乱軍の門兵無限ループ修正・フラグ制御復活")
+    LogInfo("Treasure Hunt Automation v6.24.0 開始")
+    LogInfo("変更点: ドマ反乱軍の門兵vnav stop + flytarget方式・フラグ制御削除")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
