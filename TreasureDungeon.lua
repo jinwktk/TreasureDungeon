@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v6.36.0
+                      Treasure Hunt Automation v6.37.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -23,6 +23,11 @@
   - RSR (Rotation Solver Reborn)
   - AutoHook
   - Teleporter
+
+変更履歴 v6.37.0:
+  - 詳細デバッグログ追加：フラグ・プレイヤー座標の8桁精度表示機能実装
+  - 距離計算デバッグ強化：dx/dy差分・計算結果の詳細ログ出力
+  - 77yalm誤判定原因特定：座標情報・計算過程の完全可視化機能
 
 変更履歴 v6.36.0:
   - GetDistanceToTarget関数2D水平距離化：Z座標除外で高さ誤差完全排除
@@ -821,6 +826,10 @@ local function GetDistanceToFlag()
         local dy = flagPos.Y - playerPos.Y
         
         local distance = math.sqrt(dx * dx + dy * dy)
+        LogDebug("フラグ距離計算詳細:")
+        LogDebug("  プレイヤー座標: (" .. string.format("%.8f, %.8f, %.8f", playerPos.X, playerPos.Y, playerPos.Z) .. ")")
+        LogDebug("  フラグ座標: (" .. string.format("%.8f, %.8f, %.8f", flagPos.X, flagPos.Y, flagPos.Z or 0) .. ")")
+        LogDebug("  差分: dx=" .. string.format("%.8f", dx) .. ", dy=" .. string.format("%.8f", dy))
         LogDebug("フラグからの距離: " .. string.format("%.2f", distance) .. " (2D水平計算)")
         return distance
     end, "Failed to calculate flag distance")
@@ -1282,7 +1291,9 @@ local function ExecuteMovementPhase()
     local isNearFlag = false
     if flagDistance < 999 then
         isNearFlag = flagDistance <= 5.0
-        LogDebug("フラグ距離ベース判定: " .. string.format("%.2f", flagDistance) .. "yalm")
+        LogDebug("フラグ距離ベース判定: " .. string.format("%.2f", flagDistance) .. "yalm (5.0yalm以内: " .. tostring(isNearFlag) .. ")")
+    else
+        LogDebug("フラグ距離取得失敗: " .. tostring(flagDistance))
     end
     
     -- 詳細な移動状態ログ
@@ -1437,6 +1448,11 @@ local function ExecuteMovementPhase()
     -- フラグ地点到達判定（距離優先の安全な判定）
     local shouldDig = false
     if not digExecuted then
+        LogDebug("発掘判定チェック:")
+        LogDebug("  条件1 - isNearFlag: " .. tostring(isNearFlag) .. " (距離5yalm以内)")
+        LogDebug("  条件2 - vnavmesh完了: " .. tostring(not isVNavMoving) .. ", 距離50yalm以内: " .. tostring(flagDistance < 50.0) .. ", 15秒経過: " .. tostring(elapsedTime > 15))
+        LogDebug("  条件3 - 移動停止: " .. tostring(not isMoving) .. ", 降車: " .. tostring(not isMounted) .. ", 距離20yalm以内: " .. tostring(flagDistance < 20.0) .. ", 20秒経過: " .. tostring(elapsedTime > 20))
+        
         -- 条件1: フラグ距離が取得でき、5yalm以内（最優先・最も確実）
         if isNearFlag then
             LogInfo("フラグ地点に到達しました（距離: " .. string.format("%.2f", flagDistance) .. "yalm）")
@@ -2371,8 +2387,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v6.36.0 開始")
-    LogInfo("変更点: GetDistanceToTarget関数2D水平距離化・Z座標除外・高さ誤差完全排除")
+    LogInfo("Treasure Hunt Automation v6.37.0 開始")
+    LogInfo("変更点: 詳細デバッグログ追加・フラグ距離誤判定原因特定機能実装")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
