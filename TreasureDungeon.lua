@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v6.35.0
+                      Treasure Hunt Automation v6.36.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -23,6 +23,11 @@
   - RSR (Rotation Solver Reborn)
   - AutoHook
   - Teleporter
+
+変更履歴 v6.36.0:
+  - GetDistanceToTarget関数2D水平距離化：Z座標除外で高さ誤差完全排除
+  - ターゲット距離計算統一：全ての距離判定を水平距離ベースに修正
+  - 3D→2D距離計算変更：垂直方向の影響を受けない精密な接近判定実装
 
 変更履歴 v6.35.0:
   - vnavmesh動作中の包括的重複防止：IsVNavMoving()による完全な競合回避
@@ -707,13 +712,13 @@ local function GetDistanceToTarget()
         if Entity and Entity.Player and Entity.Target and Entity.Target.Position then
             local player = Entity.Player.Position
             local target = Entity.Target.Position
-            if player and target and player.X and player.Y and player.Z and target.X and target.Y and target.Z then
+            if player and target and player.X and player.Y and target.X and target.Y then
+                -- 2D水平距離計算（高さを除外）
                 local dx = target.X - player.X
                 local dy = target.Y - player.Y
-                local dz = target.Z - player.Z
-                local calculatedDistance = math.sqrt(dx * dx + dy * dy + dz * dz)
-                LogDebug("距離計算: プレイヤー(" .. string.format("%.2f,%.2f,%.2f", player.X, player.Y, player.Z) .. 
-                        ") → ターゲット(" .. string.format("%.2f,%.2f,%.2f", target.X, target.Y, target.Z) .. 
+                local calculatedDistance = math.sqrt(dx * dx + dy * dy)
+                LogDebug("距離計算（2D水平）: プレイヤー(" .. string.format("%.2f,%.2f", player.X, player.Y) .. 
+                        ") → ターゲット(" .. string.format("%.2f,%.2f", target.X, target.Y) .. 
                         ") = " .. string.format("%.2f", calculatedDistance) .. "yalm")
                 return calculatedDistance
             end
@@ -2366,8 +2371,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v6.35.0 開始")
-    LogInfo("変更点: vnavmesh動作中包括的重複防止・IsVNavMovingチェック・移動コマンド競合完全解決")
+    LogInfo("Treasure Hunt Automation v6.36.0 開始")
+    LogInfo("変更点: GetDistanceToTarget関数2D水平距離化・Z座標除外・高さ誤差完全排除")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
