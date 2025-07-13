@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v6.41.0
+                      Treasure Hunt Automation v6.42.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -23,6 +23,11 @@
   - RSR (Rotation Solver Reborn)
   - AutoHook
   - Teleporter
+
+変更履歴 v6.42.0:
+  - ターゲット距離計算3D化：Z座標を考慮した正確な3D距離計算実装
+  - 高度差オブジェクト区別：異なる高度の宝箱・皮袋を正しく識別
+  - 3D座標ログ詳細化：X,Y,Z座標を含む詳細な距離計算情報表示
 
 変更履歴 v6.41.0:
   - 前進探索機能強化：/automove on継続でオブジェクト発見まで自動前進
@@ -50,7 +55,7 @@
   - 77yalm誤判定原因特定：座標情報・計算過程の完全可視化機能
 
 変更履歴 v6.36.0:
-  - GetDistanceToTarget関数2D水平距離化：Z座標除外で高さ誤差完全排除
+  - GetDistanceToTarget関数2D水平距離化：Z座標除外で高さ誤差完全排除（v6.42.0で3D化に変更）
   - ターゲット距離計算統一：全ての距離判定を水平距離ベースに修正
   - 3D→2D距離計算変更：垂直方向の影響を受けない精密な接近判定実装
 
@@ -738,12 +743,13 @@ local function GetDistanceToTarget()
             local player = Entity.Player.Position
             local target = Entity.Target.Position
             if player and target and player.X and player.Y and target.X and target.Y then
-                -- 2D水平距離計算（高さを除外）
+                -- 3D距離計算（Z座標も考慮）
                 local dx = target.X - player.X
                 local dy = target.Y - player.Y
-                local calculatedDistance = math.sqrt(dx * dx + dy * dy)
-                LogDebug("距離計算（2D水平）: プレイヤー(" .. string.format("%.2f,%.2f", player.X, player.Y) .. 
-                        ") → ターゲット(" .. string.format("%.2f,%.2f", target.X, target.Y) .. 
+                local dz = (target.Z or 0) - (player.Z or 0)
+                local calculatedDistance = math.sqrt(dx * dx + dy * dy + dz * dz)
+                LogDebug("距離計算（3D）: プレイヤー(" .. string.format("%.2f,%.2f,%.2f", player.X, player.Y, player.Z or 0) .. 
+                        ") → ターゲット(" .. string.format("%.2f,%.2f,%.2f", target.X, target.Y, target.Z or 0) .. 
                         ") = " .. string.format("%.2f", calculatedDistance) .. "yalm")
                 return calculatedDistance
             end
@@ -2452,8 +2458,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v6.41.0 開始")
-    LogInfo("変更点: 前進探索機能強化・オブジェクト発見まで自動前進実装")
+    LogInfo("Treasure Hunt Automation v6.42.0 開始")
+    LogInfo("変更点: ターゲット距離計算3D化・Z座標考慮で高度差オブジェクト区別")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
