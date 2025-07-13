@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v6.27.0
+                      Treasure Hunt Automation v6.28.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -23,6 +23,11 @@
   - RSR (Rotation Solver Reborn)
   - AutoHook
   - Teleporter
+
+変更履歴 v6.28.0:
+  - ドマ反乱軍の門兵座標を実際のターゲット座標に更新
+  - 既知座標を276.35607910, 3.65841579, -377.52349854に精密修正
+  - 完全一致判定で確実にインタラクト対象を識別
 
 変更履歴 v6.27.0:
   - IsMounted関数未定義エラー修正：IsPlayerMounted()に統一変更
@@ -1253,7 +1258,7 @@ local function ExecuteMovementPhase()
     local currentZoneId = GetZoneID()
     if currentZoneId == 614 then
         -- ドマ反乱軍の門兵の既知座標
-        local domaGuardPos = {X = 276.35608, Y = 3.6584158, Z = -377.5235}
+        local domaGuardPos = {X = 276.35607910, Y = 3.65841579, Z = -377.52349854}
         
         yield("/target ドマ反乱軍の門兵")
         Wait(0.5)
@@ -2284,8 +2289,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v6.27.0 開始")
-    LogInfo("変更点: IsMounted関数未定義エラー修正・vnavmesh移動エラー解決・API正規化")
+    LogInfo("Treasure Hunt Automation v6.28.0 開始")
+    LogInfo("変更点: ドマ反乱軍の門兵座標精密修正・実際のターゲット座標に更新・完全一致判定")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
