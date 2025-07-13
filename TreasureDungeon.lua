@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v6.39.0
+                      Treasure Hunt Automation v6.40.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -23,6 +23,11 @@
   - RSR (Rotation Solver Reborn)
   - AutoHook
   - Teleporter
+
+変更履歴 v6.40.0:
+  - ダンジョン外革袋処理除外：戦闘後ターゲットから革袋を削除
+  - 距離計算失敗999yalm無限ループ解決：存在しないオブジェクト処理を削除
+  - 処理効率向上：不要なターゲット検索を排除して安定性向上
 
 変更履歴 v6.39.0:
   - Vector2座標軸修正：Vector2.Y→Z座標で455yalm誤判定解決
@@ -1856,7 +1861,8 @@ local function ExecuteCombatPhase()
             LogInfo("戦闘完了後の宝箱再チェック...")
             
             -- 戦闘後の宝箱・皮袋回収（距離チェック付き）
-            local postCombatTargets = {"宝箱", "皮袋", "革袋"}
+            -- ダンジョン外では革袋は存在しないのでスキップ
+            local postCombatTargets = {"宝箱", "皮袋"}
             
             for _, targetName in ipairs(postCombatTargets) do
                 yield("/target " .. targetName)
@@ -2408,8 +2414,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v6.39.0 開始")
-    LogInfo("変更点: Vector2座標軸修正・プレイヤーY座標補完で距離計算精度向上")
+    LogInfo("Treasure Hunt Automation v6.40.0 開始")
+    LogInfo("変更点: ダンジョン外革袋処理除外・999yalm無限ループ解決")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
