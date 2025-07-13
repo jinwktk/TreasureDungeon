@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v6.31.0
+                      Treasure Hunt Automation v6.32.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -23,6 +23,10 @@
   - RSR (Rotation Solver Reborn)
   - AutoHook
   - Teleporter
+
+変更履歴 v6.32.0:
+  - マウント召喚コマンド修正：/gaction mountから/mount 高機動型パワーローダーに変更
+  - 特定マウント指定：確実な高機動型パワーローダー召喚処理実装
 
 変更履歴 v6.31.0:
   - ドマ反乱軍の門兵インタラクト後マウント再召喚機能：暗転後の自動再乗車処理
@@ -1201,7 +1205,7 @@ local function ExecuteMovementPhase()
                         if not shouldFly then
                             if CanMount() then
                                 LogInfo("マウント召喚中...")
-                                yield("/gaction mount") 
+                                yield("/mount 高機動型パワーローダー") 
                                 Wait(3)
                                 shouldFly = IsPlayerMounted()
                             end
@@ -1354,7 +1358,7 @@ local function ExecuteMovementPhase()
                     if not IsPlayerMounted() then
                         if CanMount() then
                             LogInfo("マウント再召喚中...")
-                            yield("/gaction mount")
+                            yield("/mount 高機動型パワーローダー")
                             Wait(3)
                         end
                     end
@@ -1385,7 +1389,7 @@ local function ExecuteMovementPhase()
                     if not IsPlayerMounted() then
                         if CanMount() then
                             LogInfo("マウント再召喚中...")
-                            yield("/gaction mount")
+                            yield("/mount 高機動型パワーローダー")
                             Wait(3)
                         end
                     end
@@ -2331,8 +2335,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v6.31.0 開始")
-    LogInfo("変更点: インタラクト後マウント再召喚・移動再開時状態確認・fly動的調整")
+    LogInfo("Treasure Hunt Automation v6.32.0 開始")
+    LogInfo("変更点: マウント召喚コマンド修正・高機動型パワーローダー指定・確実な召喚処理")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
