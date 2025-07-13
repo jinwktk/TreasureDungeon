@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v6.26.0
+                      Treasure Hunt Automation v6.27.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -23,6 +23,11 @@
   - RSR (Rotation Solver Reborn)
   - AutoHook
   - Teleporter
+
+変更履歴 v6.27.0:
+  - IsMounted関数未定義エラー修正：IsPlayerMounted()に統一変更
+  - vnavmesh移動エラー解決：マウント状態確認API正規化
+  - 無限ループエラー防止：正しい関数名でのマウント判定実装
 
 変更履歴 v6.26.0:
   - ドマ反乱軍の門兵座標判定厳格化：精密な完全一致判定に変更
@@ -1171,7 +1176,7 @@ local function ExecuteMovementPhase()
                 local moveSuccess = SafeExecute(function()
                     if IPC and IPC.vnavmesh and IPC.vnavmesh.PathfindAndMoveTo then
                         -- マウント状態確認してfly設定
-                        local shouldFly = IsMounted()
+                        local shouldFly = IsPlayerMounted()
                         
                         -- マウント乗ってない場合は乗る
                         if not shouldFly then
@@ -1179,7 +1184,7 @@ local function ExecuteMovementPhase()
                                 LogInfo("マウント召喚中...")
                                 yield("/gaction mount") 
                                 Wait(3)
-                                shouldFly = IsMounted()
+                                shouldFly = IsPlayerMounted()
                             end
                         end
                         
@@ -1284,7 +1289,7 @@ local function ExecuteMovementPhase()
                     end
                     
                     -- マウント状態チェック・降車
-                    if IsMounted() then
+                    if IsPlayerMounted() then
                         LogInfo("マウントから降車中...")
                         yield("/dismount")
                         Wait(2)
@@ -2279,8 +2284,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v6.26.0 開始")
-    LogInfo("変更点: ドマ反乱軍の門兵座標精密一致判定・距離許容削除・誤判定防止強化")
+    LogInfo("Treasure Hunt Automation v6.27.0 開始")
+    LogInfo("変更点: IsMounted関数未定義エラー修正・vnavmesh移動エラー解決・API正規化")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
