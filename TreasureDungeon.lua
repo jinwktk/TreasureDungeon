@@ -3,19 +3,12 @@
                       Treasure Hunt Automation v1.0.0
 ================================================================================
 
-新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
+FFXIV トレジャーハント完全自動化スクリプト
 
 主な機能:
   - G17/G10地図の完全自動化
   - 7段階フェーズ管理システム
-  - 新SND v12.0.0.0+ モジュールベースAPI対応
-  - シンプルで堅牢なエラー処理
-  - ダンジョンタイプ自動検出・表示機能
-
-使用方法:
-  1. 設定で地図タイプを選択 (G17/G10)
-  2. スクリプトを実行
-  3. 全自動でトレジャーハント実行
+  - SND v12.0.0.0+ モジュールベースAPI対応
 
 必須プラグイン:
   - Something Need Doing [Expanded Edition] v12.0.0.0+
@@ -24,14 +17,7 @@
   - AutoHook
   - Teleporter
 
-変更履歴 v1.0.0 (安定版リリース):
-  - SEHException完全対策：IPC.vnavmesh.PathfindAndMoveTo無効化・危険API回避
-  - 無限ループ修正：ドマ反乱軍の門兵インタラクト後の適切なフラグ管理
-  - 包括的エラー処理：多層SafeExecute・Lua状態健全性チェック・システム例外検出
-  - Y座標補正システム：既知問題座標での自動修正・移動精度向上
-  - 安定性最優先設計：yield専用移動・時間計算オーバーフロー防止・本格運用対応
-
-変更履歴 v6.83:
+================================================================================
   - 複数座標Y修正対応：X=219.05, Z=-66.08地点でY=95.224自動修正を追加
   - Y座標修正拡張：既存X=525.47, Z=-799.65(Y=22.0)に加えて2点目対応
   - 座標別個別修正：各座標に応じた適切なY値設定機能
@@ -401,9 +387,7 @@ Date: 2025-07-12
 ================================================================================
 ]]
 
--- ================================================================================
 -- 設定管理
--- ================================================================================
 
 local CONFIG = {
     -- 地図設定
@@ -492,11 +476,7 @@ local PHASES = {
     ERROR = "エラー"
 }
 
--- ================================================================================
 -- ユーティリティ関数
--- ================================================================================
-
--- ログ出力関数（切り替え可能）
 function Log(level, message, data)
     local timestamp = os.date("%H:%M:%S")
     local logMessage = string.format("[%s][%s][%s] %s", timestamp, level, currentPhase or "INIT", message)
@@ -3022,10 +3002,18 @@ local function AutoMoveForward()
             Wait(0.3)
             
             if HasTarget() then
-                yield("/automove off")
-                LogInfo("前進探索完了: " .. targetName .. "を発見")
-                Wait(1)
-                return targetName
+                local distance = GetDistanceToTarget()
+                local targetDistance = CONFIG.TARGET_DISTANCES.TREASURE_CHEST
+                
+                if distance <= targetDistance then
+                    yield("/automove off")
+                    LogInfo("前進探索完了: " .. targetName .. "を発見（距離: " .. string.format("%.1f", distance) .. "）")
+                    Wait(1)
+                    return targetName
+                else
+                    LogInfo("" .. targetName .. "発見（距離: " .. string.format("%.1f", distance) .. "）- ターゲット可能距離まで前進中")
+                    -- ターゲット可能距離ではないので前進継続
+                end
             end
         end
     end
