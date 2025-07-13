@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v6.21.0
+                      Treasure Hunt Automation v6.22.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -24,10 +24,15 @@
   - AutoHook
   - Teleporter
 
-変更履歴 v6.20.0:
-  - ドマ反乱軍の門兵接近方法変更：マウントに乗ったまま/vnav flyflag 3で接近
-  - インタラクト成功時フラグ設定：確実にインタラクト完了後にフラグON
-  - 飛行移動最適化：降車・再召喚プロセス削除でスムーズな処理
+変更履歴 v6.22.0:
+  - Entity.Target nilエラー修正：Entity.Target.Position安全アクセス実装
+  - GetDistanceToTarget関数強化：Entity.Target存在チェック追加
+  - MOVEMENTフェーズ安定性向上：nilポインタエラー完全排除
+
+変更履歴 v6.21.0:
+  - ドマ反乱軍の門兵座標ベース精密ターゲティング：既知座標での距離検証
+  - domaGuardInteractedフラグ削除：座標検証で重複防止フラグ不要化
+  - バージョン情報統一更新：v6.21.0への一括アップデート
 
 変更履歴 v6.19.0:
   - ドマ反乱軍の門兵インタラクトフラグ追加：1移動フェーズに1回のみ実行（v6.21で削除）
@@ -83,7 +88,7 @@
   - 戦闘フェーズ移行条件最適化：真の宝箱発見時のみ移行
 
 Author: Claude (based on pot0to's original work)
-Version: 6.21.0
+Version: 6.22.0
 Date: 2025-07-12
 
 ================================================================================
@@ -611,7 +616,7 @@ end
 local function GetDistanceToTarget()
     local success, distance = SafeExecute(function()
         -- Entity.Target.Positionを使用した距離計算
-        if Entity and Entity.Player and Entity.Target then
+        if Entity and Entity.Player and Entity.Target and Entity.Target.Position then
             local player = Entity.Player.Position
             local target = Entity.Target.Position
             if player and target and player.X and player.Y and player.Z and target.X and target.Y and target.Z then
@@ -1188,9 +1193,9 @@ local function ExecuteMovementPhase()
         if HasTarget() then
             -- ターゲット名と位置を確認してドマ反乱軍の門兵かチェック
             local targetName = GetTargetName and GetTargetName() or ""
-            local targetPos = Entity.Target.Position
+            local targetPos = Entity.Target and Entity.Target.Position or nil
             
-            if string.find(targetName, "ドマ反乱軍の門兵") and targetPos then
+            if string.find(targetName, "ドマ反乱軍の門兵") and targetPos and targetPos.X and targetPos.Y and targetPos.Z then
                 -- 座標の距離チェック（既知座標から10yalm以内なら正しいドマ反乱軍の門兵）
                 local distance = math.sqrt(
                     (targetPos.X - domaGuardPos.X)^2 + 
@@ -2208,8 +2213,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v6.21.0 開始")
-    LogInfo("変更点: ドマ反乱軍の門兵座標ベース精密ターゲティング機能")
+    LogInfo("Treasure Hunt Automation v6.22.0 開始")
+    LogInfo("変更点: Entity.Target nilエラー修正・安全アクセス実装")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()

@@ -196,6 +196,11 @@ end
 - バージョン表示v6.10.0→v6.21.0への一括更新
 - 変更内容に応じたログメッセージ更新
 
+### v6.22.0での対応例（2025-07-13）
+- Entity.Target nilエラー報告→即座にnilチェック追加修正
+- MOVEMENT フェーズでのEntity.Target.Position安全アクセス実装
+- GetDistanceToTarget関数のEntity.Target存在チェック強化
+
 ## 実行環境
 - FFXIV + Dalamud + SomethingNeedDoing v12.0.0+
 - 必須プラグイン: VNavmesh, RSR, AutoHook, Teleporter
