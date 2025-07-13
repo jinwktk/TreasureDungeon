@@ -1,1 +1,0 @@
--- Backup created to solve encoding issues
