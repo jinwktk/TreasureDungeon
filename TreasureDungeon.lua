@@ -21,8 +21,9 @@
   - Something Need Doing [Expanded Edition] v12.0.0.0+
   - VNavmesh
   - RSR (Rotation Solver Reborn)
-  - AutoHook
   - Teleporter
+  - Globetrotter (https://github.com/chirpxiv/Globetrotter)
+  - YesAlready (https://github.com/PunishXIV/YesAlready)
 
 変更履歴 v1.0.0 (安定版リリース):
   - SEHException完全対策：IPC.vnavmesh.PathfindAndMoveTo無効化・危険API回避
