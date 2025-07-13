@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v6.40.0
+                      Treasure Hunt Automation v6.41.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -23,6 +23,11 @@
   - RSR (Rotation Solver Reborn)
   - AutoHook
   - Teleporter
+
+変更履歴 v6.41.0:
+  - 前進探索機能強化：/automove on継続でオブジェクト発見まで自動前進
+  - ターゲット優先度システム：宝箱→ドア→転送魔紋→ボスの順で効率的探索
+  - 30秒タイムアウト機能：無限前進を防ぐ安全機構実装
 
 変更履歴 v6.40.0:
   - ダンジョン外革袋処理除外：戦闘後ターゲットから革袋を削除
@@ -1990,11 +1995,41 @@ end
 
 -- ダンジョン探索サブ関数群
 local function AutoMoveForward()
-    LogDebug("前進探索を開始")
+    LogDebug("前進探索を開始 - オブジェクト発見まで継続")
     yield("/automove on")
-    Wait(3)
+    
+    local searchStartTime = os.clock()
+    local maxSearchTime = 30 -- 最大30秒で探索タイムアウト
+    
+    while os.clock() - searchStartTime < maxSearchTime do
+        Wait(1)
+        
+        -- 優先度順でターゲット検索
+        local targetPriorities = {
+            "宝箱", "皮袋", "革袋",  -- 宝物類
+            "扉", "ドア", "Door",    -- 進行用ドア
+            "魔法陣", "召喚魔法陣", "転送魔紋", "転送装置", "転送陣", "魔紋",  -- 転送類
+            "ブルアポリオン", "ゴールデン", "モルター"  -- ボス類
+        }
+        
+        for _, targetName in ipairs(targetPriorities) do
+            yield("/target " .. targetName)
+            Wait(0.3)
+            
+            if HasTarget() then
+                yield("/automove off")
+                LogInfo("前進探索完了: " .. targetName .. "を発見")
+                Wait(1)
+                return targetName
+            end
+        end
+    end
+    
+    -- タイムアウト時は停止
     yield("/automove off")
+    LogWarn("前進探索タイムアウト (" .. maxSearchTime .. "秒)")
     Wait(1)
+    return nil
 end
 
 local function CheckForTreasures()
@@ -2339,7 +2374,10 @@ local function ExecuteDungeonPhase()
             if not interacted then
                 -- 何もターゲットできない場合は前進探索
                 LogDebug("ターゲット可能なオブジェクトなし - 前進探索")
-                AutoMoveForward()
+                local foundTarget = AutoMoveForward()
+                if foundTarget then
+                    LogInfo("前進探索で発見: " .. foundTarget .. " - 次回ループで処理")
+                end
             end
         end
         
@@ -2414,8 +2452,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v6.40.0 開始")
-    LogInfo("変更点: ダンジョン外革袋処理除外・999yalm無限ループ解決")
+    LogInfo("Treasure Hunt Automation v6.41.0 開始")
+    LogInfo("変更点: 前進探索機能強化・オブジェクト発見まで自動前進実装")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
