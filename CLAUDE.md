@@ -224,5 +224,5 @@ end
 
 ## 実行環境
 - FFXIV + Dalamud + SomethingNeedDoing v12.0.0+
-- 必須プラグイン: VNavmesh, RSR, Teleporter, Globetrotter, YesAlready
+- 必須プラグイン: VNavmesh, RSR, BossModReborn, Teleporter, Globetrotter, YesAlready
 - 推奨ジョブ: G17=ナイト(PLD), G10=戦士(WAR)

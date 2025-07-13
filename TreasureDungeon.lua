@@ -21,6 +21,7 @@
   - Something Need Doing [Expanded Edition] v12.0.0.0+
   - VNavmesh
   - RSR (Rotation Solver Reborn)
+  - BossModReborn
   - Teleporter
   - Globetrotter (https://github.com/chirpxiv/Globetrotter)
   - YesAlready (https://github.com/PunishXIV/YesAlready)

@@ -80,6 +80,7 @@ GetTargetName()                           -- ターゲット名取得
 - **Something Need Doing [Expanded Edition]** v12.0.0.0+ - Luaスクリプト実行
 - **vnavmesh** - 自動ナビゲーション・移動
 - **RotationSolverReborn** - 自動戦闘
+- **BossModReborn** - 戦闘支援・回避支援
 - **Teleporter** - テレポート機能
 - **[Globetrotter](https://github.com/chirpxiv/Globetrotter)** - 地図・座標管理
 - **[YesAlready](https://github.com/PunishXIV/YesAlready)** - 自動確認ダイアログ処理
