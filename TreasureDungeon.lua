@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v6.30.0
+                      Treasure Hunt Automation v6.31.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -23,6 +23,11 @@
   - RSR (Rotation Solver Reborn)
   - AutoHook
   - Teleporter
+
+変更履歴 v6.31.0:
+  - ドマ反乱軍の門兵インタラクト後マウント再召喚機能：暗転後の自動再乗車処理
+  - 移動再開時マウント状態確認：降車状態からの自動復帰機能実装
+  - fly設定動的調整：マウント状態と飛行可能状態に応じた最適化
 
 変更履歴 v6.30.0:
   - マウント降車コマンド変更：/dismountから/gaction 降りるに修正
@@ -1344,10 +1349,22 @@ local function ExecuteMovementPhase()
                 
                 if success and flagPos then
                     LogInfo("フラグ座標取得成功 - 移動再開")
+                    
+                    -- 移動再開前にマウント状態確認・再召喚
+                    if not IsPlayerMounted() then
+                        if CanMount() then
+                            LogInfo("マウント再召喚中...")
+                            yield("/gaction mount")
+                            Wait(3)
+                        end
+                    end
+                    
                     local moveSuccess = SafeExecute(function()
                         if IPC and IPC.vnavmesh and IPC.vnavmesh.PathfindAndMoveTo then
-                            IPC.vnavmesh.PathfindAndMoveTo(flagPos, true)
-                            LogDebug("vnavmesh移動再開 (IPC API)")
+                            -- マウント状態に応じたfly設定
+                            local shouldFly = IsPlayerMounted() and CanFly()
+                            IPC.vnavmesh.PathfindAndMoveTo(flagPos, shouldFly)
+                            LogDebug("vnavmesh移動再開 (IPC API), fly=" .. tostring(shouldFly))
                             return true
                         else
                             yield("/vnav flyflag")
@@ -1363,6 +1380,16 @@ local function ExecuteMovementPhase()
                     end
                 else
                     LogWarn("フラグ座標取得に失敗 - コマンドで移動再開")
+                    
+                    -- 移動再開前にマウント状態確認・再召喚
+                    if not IsPlayerMounted() then
+                        if CanMount() then
+                            LogInfo("マウント再召喚中...")
+                            yield("/gaction mount")
+                            Wait(3)
+                        end
+                    end
+                    
                     yield("/vnav flyflag")
                 end
                 
@@ -2304,8 +2331,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v6.30.0 開始")
-    LogInfo("変更点: マウント降車コマンド変更・/gaction 降りる・日本語環境対応")
+    LogInfo("Treasure Hunt Automation v6.31.0 開始")
+    LogInfo("変更点: インタラクト後マウント再召喚・移動再開時状態確認・fly動的調整")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
