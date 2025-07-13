@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v6.37.0
+                      Treasure Hunt Automation v6.38.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -23,6 +23,11 @@
   - RSR (Rotation Solver Reborn)
   - AutoHook
   - Teleporter
+
+変更履歴 v6.38.0:
+  - Vector3 Y座標0.0問題修正：Y座標が0.0の場合Vector2にフォールバック機能実装
+  - 77yalm誤判定根本解決：座標取得APIの適切な選択で距離計算精度向上
+  - フォールバック詳細ログ：Vector3→Vector2切替時の状況を詳細表示
 
 変更履歴 v6.37.0:
   - 詳細デバッグログ追加：フラグ・プレイヤー座標の8桁精度表示機能実装
@@ -771,10 +776,18 @@ local function GetDistanceToFlag()
         
         -- 新しいVector APIを優先的に使用
         local flagPos = nil
-        if Instances.Map.Flag.Vector3 then
-            -- Vector3が利用可能な場合（3D座標）
+        if Instances.Map.Flag.Vector3 and Instances.Map.Flag.Vector3.Y ~= 0.0 then
+            -- Vector3が利用可能で、Y座標が有効な場合（3D座標）
             flagPos = Instances.Map.Flag.Vector3
             LogDebug("Vector3を使用してフラグ座標を取得: (" .. tostring(flagPos.X) .. ", " .. tostring(flagPos.Y) .. ", " .. tostring(flagPos.Z) .. ")")
+        elseif Instances.Map.Flag.Vector3 then
+            -- Vector3はあるがY座標が0.0の場合、Vector2にフォールバック
+            LogDebug("Vector3のY座標が0.0のため、Vector2にフォールバック: (" .. tostring(Instances.Map.Flag.Vector3.X) .. ", " .. tostring(Instances.Map.Flag.Vector3.Y) .. ", " .. tostring(Instances.Map.Flag.Vector3.Z) .. ")")
+            if Instances.Map.Flag.Vector2 then
+                local flagVec2 = Instances.Map.Flag.Vector2
+                flagPos = {X = flagVec2.X, Y = flagVec2.Y, Z = 0}
+                LogDebug("Vector2フォールバック成功: (" .. tostring(flagPos.X) .. ", " .. tostring(flagPos.Y) .. ")")
+            end
         elseif Instances.Map.Flag.Vector2 then
             -- Vector2が利用可能な場合（2D座標）
             local flagVec2 = Instances.Map.Flag.Vector2
@@ -2387,8 +2400,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v6.37.0 開始")
-    LogInfo("変更点: 詳細デバッグログ追加・フラグ距離誤判定原因特定機能実装")
+    LogInfo("Treasure Hunt Automation v6.38.0 開始")
+    LogInfo("変更点: Vector3 Y座標0.0問題修正・Vector2フォールバック機能実装")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
