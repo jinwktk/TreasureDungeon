@@ -201,6 +201,11 @@ end
 - MOVEMENT フェーズでのEntity.Target.Position安全アクセス実装
 - GetDistanceToTarget関数のEntity.Target存在チェック強化
 
+### v6.23.0での対応例（2025-07-13）
+- ドマ反乱軍の門兵飛行接近無限ループ報告→即座にフラグ再導入修正
+- domaGuardInteractedフラグ復活：移動フェーズで1回のみ実行制御
+- 無限ループ防止：インタラクト完了後フラグ設定で重複実行回避
+
 ## 実行環境
 - FFXIV + Dalamud + SomethingNeedDoing v12.0.0+
 - 必須プラグイン: VNavmesh, RSR, AutoHook, Teleporter

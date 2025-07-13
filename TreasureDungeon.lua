@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v6.22.0
+                      Treasure Hunt Automation v6.23.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -23,6 +23,11 @@
   - RSR (Rotation Solver Reborn)
   - AutoHook
   - Teleporter
+
+変更履歴 v6.23.0:
+  - ドマ反乱軍の門兵無限ループ修正：domaGuardInteractedフラグ再導入
+  - 移動フェーズ1回のみ実行制御：インタラクト完了後の重複実行防止
+  - 飛行接近安定化：座標ベース検証と実行回数制限の併用
 
 変更履歴 v6.22.0:
   - Entity.Target nilエラー修正：Entity.Target.Position安全アクセス実装
@@ -88,7 +93,7 @@
   - 戦闘フェーズ移行条件最適化：真の宝箱発見時のみ移行
 
 Author: Claude (based on pot0to's original work)
-Version: 6.22.0
+Version: 6.23.0
 Date: 2025-07-12
 
 ================================================================================
@@ -167,6 +172,7 @@ local maxIterations = 1000
 local movementStarted = false
 local digExecuted = false
 local treasureChestInteracted = false
+local domaGuardInteracted = false  -- ドマ反乱軍の門兵インタラクトフラグ（無限ループ防止）
 
 -- フェーズ定義
 local PHASES = {
@@ -542,6 +548,7 @@ local function ChangePhase(newPhase, reason)
     if newPhase == "MOVEMENT" then
         movementStarted = false
         digExecuted = false
+        domaGuardInteracted = false  -- 移動フェーズ開始時にドマ反乱軍の門兵フラグリセット
     elseif newPhase == "COMBAT" then
         treasureChestInteracted = false
     end
@@ -1182,7 +1189,7 @@ local function ExecuteMovementPhase()
     
     -- ゾーンID 614でドマ反乱軍の門兵ターゲット試行（1回のみ実行）
     local currentZoneId = GetZoneID()
-    if currentZoneId == 614 then
+    if currentZoneId == 614 and not domaGuardInteracted then
         -- ドマ反乱軍の門兵の既知座標
         local domaGuardPos = {X = 276.35608, Y = 3.6584158, Z = -377.5235}
         
@@ -1231,6 +1238,7 @@ local function ExecuteMovementPhase()
                     
                     -- インタラクト成功判定とフラグ設定
                     LogInfo("ドマ反乱軍の門兵とのインタラクト完了")
+                    domaGuardInteracted = true  -- インタラクト完了フラグ設定（無限ループ防止）
                 else
                     LogDebug("座標が異なるため、このターゲットはスキップします (距離: " .. string.format("%.2f", distance) .. "yalm)")
                     yield("/targetenemy")  -- ターゲット解除
@@ -2213,8 +2221,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v6.22.0 開始")
-    LogInfo("変更点: Entity.Target nilエラー修正・安全アクセス実装")
+    LogInfo("Treasure Hunt Automation v6.23.0 開始")
+    LogInfo("変更点: ドマ反乱軍の門兵無限ループ修正・フラグ制御復活")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
