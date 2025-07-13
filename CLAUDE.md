@@ -180,6 +180,22 @@ end
 - SNDScripts参考: https://github.com/WigglyMuffin/SNDScripts/
 - 関数参考: https://github.com/McVaxius/dhogsbreakfeast/blob/main/_functions.lua
 
+## 重要な開発指示（ユーザー要求事項）
+
+### 今後の作業における必須事項
+1. **即座の仕様変更対応**: ユーザーが不要と指摘した機能は即座に削除・修正する
+2. **バージョン管理の徹底**: 
+   - ヘッダーコメントのバージョン番号更新
+   - LogInfo内のバージョン表示更新
+   - 変更内容に応じた適切なバージョン説明
+3. **CLAUDE.mdへの記録**: 重要な指示や変更要求は都度CLAUDE.mdに記録すること
+4. **繰り返し指示の回避**: 一度指摘された事項は二度と繰り返させない
+
+### v6.21.0での対応例
+- ユーザー指摘「ドマ反乱軍の門兵インタラクトフラグは不要」→即座に削除実行
+- バージョン表示v6.10.0→v6.21.0への一括更新
+- 変更内容に応じたログメッセージ更新
+
 ## 実行環境
 - FFXIV + Dalamud + SomethingNeedDoing v12.0.0+
 - 必須プラグイン: VNavmesh, RSR, AutoHook, Teleporter

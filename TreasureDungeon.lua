@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v6.20.0
+                      Treasure Hunt Automation v6.21.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -30,9 +30,9 @@
   - 飛行移動最適化：降車・再召喚プロセス削除でスムーズな処理
 
 変更履歴 v6.19.0:
-  - ドマ反乱軍の門兵インタラクトフラグ追加：1移動フェーズに1回のみ実行
-  - 重複インタラクト防止機能：domaGuardInteractedフラグによる制御
-  - フェーズ変更時自動リセット：移動フェーズ開始時にフラグクリア
+  - ドマ反乱軍の門兵インタラクトフラグ追加：1移動フェーズに1回のみ実行（v6.21で削除）
+  - 重複インタラクト防止機能：domaGuardInteractedフラグによる制御（v6.21で削除）
+  - フェーズ変更時自動リセット：移動フェーズ開始時にフラグクリア（v6.21で削除）
 
 変更履歴 v6.18.0:
   - 会話ウィンドウ処理完全削除：ドマ反乱軍の門兵は会話ウィンドウなし
@@ -83,7 +83,7 @@
   - 戦闘フェーズ移行条件最適化：真の宝箱発見時のみ移行
 
 Author: Claude (based on pot0to's original work)
-Version: 6.20.0
+Version: 6.21.0
 Date: 2025-07-12
 
 ================================================================================
@@ -162,7 +162,6 @@ local maxIterations = 1000
 local movementStarted = false
 local digExecuted = false
 local treasureChestInteracted = false
-local domaGuardInteracted = false  -- ドマ反乱軍の門兵インタラクトフラグ
 
 -- フェーズ定義
 local PHASES = {
@@ -538,7 +537,6 @@ local function ChangePhase(newPhase, reason)
     if newPhase == "MOVEMENT" then
         movementStarted = false
         digExecuted = false
-        domaGuardInteracted = false  -- 移動フェーズ開始時にリセット
     elseif newPhase == "COMBAT" then
         treasureChestInteracted = false
     end
@@ -1179,7 +1177,7 @@ local function ExecuteMovementPhase()
     
     -- ゾーンID 614でドマ反乱軍の門兵ターゲット試行（1回のみ実行）
     local currentZoneId = GetZoneID()
-    if currentZoneId == 614 and not domaGuardInteracted then
+    if currentZoneId == 614 then
         -- ドマ反乱軍の門兵の既知座標
         local domaGuardPos = {X = 276.35608, Y = 3.6584158, Z = -377.5235}
         
@@ -1228,7 +1226,6 @@ local function ExecuteMovementPhase()
                     
                     -- インタラクト成功判定とフラグ設定
                     LogInfo("ドマ反乱軍の門兵とのインタラクト完了")
-                    domaGuardInteracted = true  -- インタラクト成功後にフラグを設定
                 else
                     LogDebug("座標が異なるため、このターゲットはスキップします (距離: " .. string.format("%.2f", distance) .. "yalm)")
                     yield("/targetenemy")  -- ターゲット解除
@@ -2211,8 +2208,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v6.10.0 開始")
-    LogInfo("変更点: 距離計算エラー処理・長距離マウント移動・発掘失敗検出改善")
+    LogInfo("Treasure Hunt Automation v6.21.0 開始")
+    LogInfo("変更点: ドマ反乱軍の門兵座標ベース精密ターゲティング機能")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
