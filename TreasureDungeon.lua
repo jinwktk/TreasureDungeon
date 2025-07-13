@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v6.29.0
+                      Treasure Hunt Automation v6.30.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -23,6 +23,10 @@
   - RSR (Rotation Solver Reborn)
   - AutoHook
   - Teleporter
+
+変更履歴 v6.30.0:
+  - マウント降車コマンド変更：/dismountから/gaction 降りるに修正
+  - 日本語ゲーム環境対応：確実なマウント降車処理実装
 
 変更履歴 v6.29.0:
   - ドマ反乱軍の門兵座標判定を近似一致に変更：0.001以内の誤差許容
@@ -1307,7 +1311,7 @@ local function ExecuteMovementPhase()
                     -- マウント状態チェック・降車
                     if IsPlayerMounted() then
                         LogInfo("マウントから降車中...")
-                        yield("/dismount")
+                        yield("/gaction 降りる")
                         Wait(2)
                     end
                     
@@ -2300,8 +2304,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v6.29.0 開始")
-    LogInfo("変更点: ドマ反乱軍の門兵座標近似一致判定・0.001誤差許容・浮動小数点精度対応")
+    LogInfo("Treasure Hunt Automation v6.30.0 開始")
+    LogInfo("変更点: マウント降車コマンド変更・/gaction 降りる・日本語環境対応")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
