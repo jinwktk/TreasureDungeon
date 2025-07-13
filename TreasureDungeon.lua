@@ -3,19 +3,19 @@
 author: Claude + jinwktk
 version: 1.0.0
 description: >
-  FFXIVトレジャーハント(G10/G17地図)完全自動化スクリプト。
-  新SNDモジュールベースAPI対応。
-  主な機能:
-  - G17/G10地図の完全自動化
-  - 7段階フェーズ管理システム
-  - 新SND v12.0.0.0+ モジュールベースAPI対応
-  - シンプルで堅牢なエラー処理
-  - ダンジョンタイプ自動検出・表示機能
+  FFXIV Treasure Hunt (G10/G17 maps) complete automation script.
+  SND module-based API support.
+  Features:
+  - Complete automation for G17/G10 maps
+  - 7-stage phase management system
+  - SND v12.0.0.0+ module-based API support
+  - Simple and robust error handling
+  - Automatic dungeon type detection and display
   
-  使用方法:
-  1. 設定で地図タイプを選択(G17/G10)
-  2. スクリプトを実行
-  3. 全自動でトレジャーハント実行
+  Usage:
+  1. Select map type in config (G17/G10)
+  2. Run the script
+  3. Fully automated treasure hunt execution
 
 plugin_dependencies:
   - Something Need Doing [Expanded Edition]
@@ -29,34 +29,34 @@ plugin_dependencies:
 configs:
   MapType:
     default: G10
-    description: 使用する地図タイプ (G17 または G10)
+    description: Map type to use (G17 or G10)
     type: string
     required: true
   MovementTimeout:
     default: 300
-    description: 移動タイムアウト時間（秒）
+    description: Movement timeout in seconds
     type: int
     min: 60
     max: 600
   CombatTimeout:
     default: 1800
-    description: 戦闘タイムアウト時間（秒）
+    description: Combat timeout in seconds
     type: int
     min: 300
     max: 3600
   DungeonTimeout:
     default: 99999
-    description: ダンジョンタイムアウト時間（秒、99999=無制限）
+    description: Dungeon timeout in seconds (99999=unlimited)
     type: int
     min: 600
     max: 99999
   DebugEnabled:
     default: true
-    description: デバッグログ出力を有効にする
+    description: Enable debug log output
     type: boolean
   DisableIPCVNav:
     default: true
-    description: IPC vnavmesh API使用を無効化（SEHException対策）
+    description: Disable IPC vnavmesh API usage (SEHException countermeasure)
     type: boolean
 [[End Metadata]]
 ]=====]
