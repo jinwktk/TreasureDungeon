@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v6.28.0
+                      Treasure Hunt Automation v6.29.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -23,6 +23,11 @@
   - RSR (Rotation Solver Reborn)
   - AutoHook
   - Teleporter
+
+変更履歴 v6.29.0:
+  - ドマ反乱軍の門兵座標判定を近似一致に変更：0.001以内の誤差許容
+  - 浮動小数点精度問題対応：完全一致から適度な許容範囲設定
+  - 座標差分デバッグ表示追加：X/Y/Z各軸の差分を詳細表示
 
 変更履歴 v6.28.0:
   - ドマ反乱軍の門兵座標を実際のターゲット座標に更新
@@ -1270,11 +1275,17 @@ local function ExecuteMovementPhase()
             local targetPos = Entity.Target and Entity.Target.Position or nil
             
             if string.find(targetName, "ドマ反乱軍の門兵") and targetPos and targetPos.X and targetPos.Y and targetPos.Z then
-                -- 座標の精密一致チェック（既知座標と完全一致する場合のみ正しいドマ反乱軍の門兵）
+                -- 座標の近似一致チェック（既知座標から0.001以内なら正しいドマ反乱軍の門兵）
                 LogDebug("ドマ反乱軍の門兵座標確認 - ターゲット: " .. string.format("%.8f, %.8f, %.8f", targetPos.X, targetPos.Y, targetPos.Z))
                 LogDebug("ドマ反乱軍の門兵座標確認 - 既知座標: " .. string.format("%.8f, %.8f, %.8f", domaGuardPos.X, domaGuardPos.Y, domaGuardPos.Z))
                 
-                if targetPos.X == domaGuardPos.X and targetPos.Y == domaGuardPos.Y and targetPos.Z == domaGuardPos.Z then  -- 完全一致のみ
+                -- 各座標の差が0.001以内なら一致とみなす（浮動小数点精度対応）
+                local deltaX = math.abs(targetPos.X - domaGuardPos.X)
+                local deltaY = math.abs(targetPos.Y - domaGuardPos.Y)
+                local deltaZ = math.abs(targetPos.Z - domaGuardPos.Z)
+                LogDebug("座標差分 - X: " .. string.format("%.8f", deltaX) .. ", Y: " .. string.format("%.8f", deltaY) .. ", Z: " .. string.format("%.8f", deltaZ))
+                
+                if deltaX <= 0.001 and deltaY <= 0.001 and deltaZ <= 0.001 then  -- 0.001以内の近似一致
                     LogInfo("ドマ反乱軍の門兵をターゲット確認 - vnav停止してflytargetで接近します")
                     
                     -- vnavmesh停止
@@ -1308,7 +1319,7 @@ local function ExecuteMovementPhase()
                     -- インタラクト完了
                     LogInfo("ドマ反乱軍の門兵とのインタラクト完了")
                 else
-                    LogDebug("座標が一致しないため、このターゲットはスキップします")
+                    LogDebug("座標差分が許容範囲外のため、このターゲットはスキップします")
                     yield("/targetenemy")  -- ターゲット解除
                 end
                 
@@ -2289,8 +2300,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v6.28.0 開始")
-    LogInfo("変更点: ドマ反乱軍の門兵座標精密修正・実際のターゲット座標に更新・完全一致判定")
+    LogInfo("Treasure Hunt Automation v6.29.0 開始")
+    LogInfo("変更点: ドマ反乱軍の門兵座標近似一致判定・0.001誤差許容・浮動小数点精度対応")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
