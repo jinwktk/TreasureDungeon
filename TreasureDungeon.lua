@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v6.42.0
+                      Treasure Hunt Automation v6.43.0
 ================================================================================
 
 新SNDモジュールベースAPI対応 トレジャーハント完全自動化スクリプト
@@ -23,6 +23,11 @@
   - RSR (Rotation Solver Reborn)
   - AutoHook
   - Teleporter
+
+変更履歴 v6.43.0:
+  - ダンジョン判定強化：ゾーンID 794（ウズネアカナル祭殿）をダンジョンリストに追加
+  - 動的ターゲット調整：ダンジョン状態に応じて皮袋処理を自動切替
+  - ダンジョン外皮袋除外：ダンジョン外では宝箱のみを処理対象に限定
 
 変更履歴 v6.42.0:
   - ターゲット距離計算3D化：Z座標を考慮した正確な3D距離計算実装
@@ -599,9 +604,21 @@ local function IsInDuty()
             end
         end
         
-        -- フォールバック: ゾーンIDベース判定（ゾーンID 712も含む）
+        -- フォールバック: ゾーンIDベース判定（トレジャーダンジョンゾーンIDリスト）
         local zoneId = GetZoneID and GetZoneID() or 0
-        local isDutyZone = zoneId > 10000 or zoneId == 712 -- トレジャーダンジョン(712)も含む
+        local treasureDungeonZones = {
+            712, -- 従来のトレジャーダンジョン
+            794, -- ウズネアカナル祭殿
+            -- 他のトレジャーダンジョンゾーンIDもここに追加可能
+        }
+        
+        local isDutyZone = zoneId > 10000
+        for _, treasureZoneId in ipairs(treasureDungeonZones) do
+            if zoneId == treasureZoneId then
+                isDutyZone = true
+                break
+            end
+        end
         LogDebug("ダンジョン状態判定 - ゾーンIDベース (ID: " .. tostring(zoneId) .. "): " .. tostring(isDutyZone))
         return isDutyZone
     end, "Failed to check duty state")
@@ -1871,9 +1888,17 @@ local function ExecuteCombatPhase()
         if treasureChestInteracted then
             LogInfo("戦闘完了後の宝箱再チェック...")
             
-            -- 戦闘後の宝箱・皮袋回収（距離チェック付き）
-            -- ダンジョン外では革袋は存在しないのでスキップ
-            local postCombatTargets = {"宝箱", "皮袋"}
+            -- 戦闘後の回収ターゲット（ダンジョン状態に応じて調整）
+            local isInDungeon = IsInDuty()
+            local postCombatTargets = {"宝箱"}
+            
+            if isInDungeon then
+                -- ダンジョン内では皮袋も対象に追加
+                table.insert(postCombatTargets, "皮袋")
+                LogDebug("ダンジョン内検出 - 皮袋も回収対象に追加")
+            else
+                LogDebug("ダンジョン外検出 - 宝箱のみを回収対象に設定")
+            end
             
             for _, targetName in ipairs(postCombatTargets) do
                 yield("/target " .. targetName)
@@ -2458,8 +2483,8 @@ local phaseExecutors = {
 
 -- メインループ
 local function MainLoop()
-    LogInfo("Treasure Hunt Automation v6.42.0 開始")
-    LogInfo("変更点: ターゲット距離計算3D化・Z座標考慮で高度差オブジェクト区別")
+    LogInfo("Treasure Hunt Automation v6.43.0 開始")
+    LogInfo("変更点: ダンジョン判定強化・動的ターゲット調整でダンジョン外皮袋除外")
     
     currentPhase = "INIT"
     phaseStartTime = os.clock()
