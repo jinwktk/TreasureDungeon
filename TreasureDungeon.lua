@@ -1504,6 +1504,9 @@ local function GetDistanceToFlag()
             if math.abs(flagPos.X - 525.47) < 1.0 and math.abs(flagPos.Z - (-799.65)) < 1.0 then
                 flagPos.Y = 22.0
                 LogInfo("Y座標修正適用: X=" .. string.format("%.2f", flagPos.X) .. ", Z=" .. string.format("%.2f", flagPos.Z) .. " → Y=22.0")
+                LogInfo("烈士庵への自動テレポート実行")
+                yield("/tp 烈士庵")
+                Wait(3)
             elseif math.abs(flagPos.X - 219.05) < 1.0 and math.abs(flagPos.Z - (-66.08)) < 1.0 then
                 flagPos.Y = 95.224
                 LogInfo("Y座標修正適用: X=" .. string.format("%.2f", flagPos.X) .. ", Z=" .. string.format("%.2f", flagPos.Z) .. " → Y=95.224")
@@ -1958,6 +1961,9 @@ local function ExecuteMovementPhase()
                     if math.abs(flagPos.X - 525.47) < 1.0 and math.abs(flagPos.Z - (-799.65)) < 1.0 then
                         flagPos.Y = 22.0
                         LogInfo("移動時Y座標修正適用: X=" .. string.format("%.2f", flagPos.X) .. ", Z=" .. string.format("%.2f", flagPos.Z) .. " → Y=22.0")
+                        LogInfo("烈士庵への自動テレポート実行")
+                        yield("/tp 烈士庵")
+                        Wait(3)
                     elseif math.abs(flagPos.X - 219.05) < 1.0 and math.abs(flagPos.Z - (-66.08)) < 1.0 then
                         flagPos.Y = 95.224
                         LogInfo("移動時Y座標修正適用: X=" .. string.format("%.2f", flagPos.X) .. ", Z=" .. string.format("%.2f", flagPos.Z) .. " → Y=95.224")
@@ -2246,6 +2252,9 @@ local function ExecuteMovementPhase()
                         if math.abs(flagPos.X - 525.47) < 1.0 and math.abs(flagPos.Z - (-799.65)) < 1.0 then
                             flagPos.Y = 22.0
                             LogInfo("追加移動時Y座標修正適用: X=" .. string.format("%.2f", flagPos.X) .. ", Z=" .. string.format("%.2f", flagPos.Z) .. " → Y=22.0")
+                            LogInfo("烈士庵への自動テレポート実行")
+                            yield("/tp 烈士庵")
+                            Wait(3)
                         elseif math.abs(flagPos.X - 219.05) < 1.0 and math.abs(flagPos.Z - (-66.08)) < 1.0 then
                             flagPos.Y = 95.224
                             LogInfo("追加移動時Y座標修正適用: X=" .. string.format("%.2f", flagPos.X) .. ", Z=" .. string.format("%.2f", flagPos.Z) .. " → Y=95.224")
@@ -2320,6 +2329,9 @@ local function ExecuteMovementPhase()
                         if math.abs(flagPos.X - 525.47) < 1.0 and math.abs(flagPos.Z - (-799.65)) < 1.0 then
                             flagPos.Y = 22.0
                             LogInfo("緊急再移動時Y座標修正適用: X=" .. string.format("%.2f", flagPos.X) .. ", Z=" .. string.format("%.2f", flagPos.Z) .. " → Y=22.0")
+                            LogInfo("烈士庵への自動テレポート実行")
+                            yield("/tp 烈士庵")
+                            Wait(3)
                         elseif math.abs(flagPos.X - 219.05) < 1.0 and math.abs(flagPos.Z - (-66.08)) < 1.0 then
                             flagPos.Y = 95.224
                             LogInfo("緊急再移動時Y座標修正適用: X=" .. string.format("%.2f", flagPos.X) .. ", Z=" .. string.format("%.2f", flagPos.Z) .. " → Y=95.224")
