@@ -444,6 +444,25 @@ local CONFIG = {
     LOG = {
         USE_ECHO = true,    -- trueでecho、falseでDalamud.Log
         USE_DALAMUD = false -- Dalamud.Log使用フラグ
+    },
+    
+    -- 座標別テレポート設定
+    COORDINATE_TELEPORTS = {
+        {
+            x = 525.47,
+            z = -799.65,
+            y = 22.0,
+            teleport = "烈士庵",
+            description = "ドマ上級地図座標"
+        },
+        -- 他の座標とテレポート先を追加可能
+        -- {
+        --     x = 219.05,
+        --     z = -66.08,
+        --     y = 95.224,
+        --     teleport = "イシュガルド：下層",
+        --     description = "イシュガルド地図座標"
+        -- }
     }
 }
 
@@ -477,6 +496,27 @@ local PHASES = {
 }
 
 -- ユーティリティ関数
+
+-- 座標別テレポート処理関数
+local function HandleCoordinateTeleport(x, z, y_corrected)
+    if not CONFIG.COORDINATE_TELEPORTS then
+        return false
+    end
+    
+    for _, coordTp in ipairs(CONFIG.COORDINATE_TELEPORTS) do
+        if math.abs(x - coordTp.x) < 1.0 and math.abs(z - coordTp.z) < 1.0 then
+            if coordTp.teleport then
+                LogInfo(string.format("座標マッチ: %s - %s へテレポート実行", coordTp.description or "不明", coordTp.teleport))
+                yield("/tp " .. coordTp.teleport)
+                Wait(3)
+                return true
+            end
+        end
+    end
+    
+    return false
+end
+
 function Log(level, message, data)
     local timestamp = os.date("%H:%M:%S")
     local logMessage = string.format("[%s][%s][%s] %s", timestamp, level, currentPhase or "INIT", message)
@@ -1501,15 +1541,17 @@ local function GetDistanceToFlag()
         -- Y座標修正機能：特定座標でのY座標補正
         if flagPos.Y == 0.0 or not flagPos.Y then
             -- 既知座標での個別Y座標修正
+            -- 座標別Y修正とテレポート処理
+            local teleportHandled = false
+            
             if math.abs(flagPos.X - 525.47) < 1.0 and math.abs(flagPos.Z - (-799.65)) < 1.0 then
                 flagPos.Y = 22.0
                 LogInfo("Y座標修正適用: X=" .. string.format("%.2f", flagPos.X) .. ", Z=" .. string.format("%.2f", flagPos.Z) .. " → Y=22.0")
-                LogInfo("烈士庵への自動テレポート実行")
-                yield("/tp 烈士庵")
-                Wait(3)
+                teleportHandled = HandleCoordinateTeleport(flagPos.X, flagPos.Z, flagPos.Y)
             elseif math.abs(flagPos.X - 219.05) < 1.0 and math.abs(flagPos.Z - (-66.08)) < 1.0 then
                 flagPos.Y = 95.224
                 LogInfo("Y座標修正適用: X=" .. string.format("%.2f", flagPos.X) .. ", Z=" .. string.format("%.2f", flagPos.Z) .. " → Y=95.224")
+                teleportHandled = HandleCoordinateTeleport(flagPos.X, flagPos.Z, flagPos.Y)
             else
                 -- デフォルトフォールバック値
                 flagPos.Y = 150.0
@@ -1958,15 +2000,17 @@ local function ExecuteMovementPhase()
             if success and flagPos then
                 -- Y座標修正機能：移動時の座標補正
                 if flagPos.Y == 0.0 or not flagPos.Y then
+                    -- 座標別Y修正とテレポート処理
+                    local teleportHandled = false
+                    
                     if math.abs(flagPos.X - 525.47) < 1.0 and math.abs(flagPos.Z - (-799.65)) < 1.0 then
                         flagPos.Y = 22.0
                         LogInfo("移動時Y座標修正適用: X=" .. string.format("%.2f", flagPos.X) .. ", Z=" .. string.format("%.2f", flagPos.Z) .. " → Y=22.0")
-                        LogInfo("烈士庵への自動テレポート実行")
-                        yield("/tp 烈士庵")
-                        Wait(3)
+                        teleportHandled = HandleCoordinateTeleport(flagPos.X, flagPos.Z, flagPos.Y)
                     elseif math.abs(flagPos.X - 219.05) < 1.0 and math.abs(flagPos.Z - (-66.08)) < 1.0 then
                         flagPos.Y = 95.224
                         LogInfo("移動時Y座標修正適用: X=" .. string.format("%.2f", flagPos.X) .. ", Z=" .. string.format("%.2f", flagPos.Z) .. " → Y=95.224")
+                        teleportHandled = HandleCoordinateTeleport(flagPos.X, flagPos.Z, flagPos.Y)
                     else
                         flagPos.Y = 150.0
                         LogInfo("移動時Y座標フォールバック: Y=150.0適用")
@@ -2249,15 +2293,17 @@ local function ExecuteMovementPhase()
                     
                     -- Y座標修正機能：追加移動時の座標補正
                     if flagPos.Y == 0.0 or not flagPos.Y then
+                        -- 座標別Y修正とテレポート処理
+                        local teleportHandled = false
+                        
                         if math.abs(flagPos.X - 525.47) < 1.0 and math.abs(flagPos.Z - (-799.65)) < 1.0 then
                             flagPos.Y = 22.0
                             LogInfo("追加移動時Y座標修正適用: X=" .. string.format("%.2f", flagPos.X) .. ", Z=" .. string.format("%.2f", flagPos.Z) .. " → Y=22.0")
-                            LogInfo("烈士庵への自動テレポート実行")
-                            yield("/tp 烈士庵")
-                            Wait(3)
+                            teleportHandled = HandleCoordinateTeleport(flagPos.X, flagPos.Z, flagPos.Y)
                         elseif math.abs(flagPos.X - 219.05) < 1.0 and math.abs(flagPos.Z - (-66.08)) < 1.0 then
                             flagPos.Y = 95.224
                             LogInfo("追加移動時Y座標修正適用: X=" .. string.format("%.2f", flagPos.X) .. ", Z=" .. string.format("%.2f", flagPos.Z) .. " → Y=95.224")
+                            teleportHandled = HandleCoordinateTeleport(flagPos.X, flagPos.Z, flagPos.Y)
                         else
                             flagPos.Y = 150.0
                             LogInfo("追加移動時Y座標フォールバック: Y=150.0適用")
@@ -2326,15 +2372,17 @@ local function ExecuteMovementPhase()
                     
                     -- Y座標修正機能：緊急再移動時の座標補正
                     if flagPos.Y == 0.0 or not flagPos.Y then
+                        -- 座標別Y修正とテレポート処理
+                        local teleportHandled = false
+                        
                         if math.abs(flagPos.X - 525.47) < 1.0 and math.abs(flagPos.Z - (-799.65)) < 1.0 then
                             flagPos.Y = 22.0
                             LogInfo("緊急再移動時Y座標修正適用: X=" .. string.format("%.2f", flagPos.X) .. ", Z=" .. string.format("%.2f", flagPos.Z) .. " → Y=22.0")
-                            LogInfo("烈士庵への自動テレポート実行")
-                            yield("/tp 烈士庵")
-                            Wait(3)
+                            teleportHandled = HandleCoordinateTeleport(flagPos.X, flagPos.Z, flagPos.Y)
                         elseif math.abs(flagPos.X - 219.05) < 1.0 and math.abs(flagPos.Z - (-66.08)) < 1.0 then
                             flagPos.Y = 95.224
                             LogInfo("緊急再移動時Y座標修正適用: X=" .. string.format("%.2f", flagPos.X) .. ", Z=" .. string.format("%.2f", flagPos.Z) .. " → Y=95.224")
+                            teleportHandled = HandleCoordinateTeleport(flagPos.X, flagPos.Z, flagPos.Y)
                         else
                             flagPos.Y = 150.0
                             LogInfo("緊急再移動時Y座標フォールバック: Y=150.0適用")
