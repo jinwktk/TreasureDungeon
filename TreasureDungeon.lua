@@ -18,37 +18,25 @@ FFXIV トレジャーハント完全自動化スクリプト
   - Teleporter
 
 ================================================================================
-  - 複数座標Y修正対応：X=219.05, Z=-66.08地点でY=95.224自動修正を追加
-  - Y座標修正拡張：既存X=525.47, Z=-799.65(Y=22.0)に加えて2点目対応
-  - 座標別個別修正：各座標に応じた適切なY値設定機能
 
-変更履歴 v6.82:
-  - Y座標修正システム実装：X=525.47, Z=-799.65地点でY=22.0に自動修正
-  - Y座標0.00対応：Y座標が0.00の場合の自動フォールバック機能（デフォルトY=150.0）
-  - 移動時座標補正：距離計算と移動処理両方でY座標修正を適用
+変更履歴 v1.0.3:
+  - 座標別テレポート設定システム実装：CONFIG.COORDINATE_TELEPORTSで拡張可能な座標管理
+  - HandleCoordinateTeleport()関数：統一的な座標別テレポート処理
+  - フォールバック形式：座標・テレポート先の追加が容易な設計
 
-変更履歴 v6.81:
-  - フラッグ座標表示機能追加：正しいY座標確認のためLogInfoで詳細座標表示
-  - 座標取得方法別ログ：Vector3・Vector2・XFloat・MapX等各取得方法で座標出力
-  - 移動先座標表示：vnavmesh移動時の実際の移動先座標をログ出力
+変更履歴 v1.0.2:
+  - 烈士庵自動テレポート機能追加：X=525.47, Z=-799.65座標でY=22.0修正時に自動実行
+  - 全4箇所のY座標修正地点に烈士庵テレポート追加
 
-変更履歴 v6.80:
-  - タイムアウト設定大幅改善：ダンジョンタイムアウト無効化（99999秒）・戦闘タイムアウト延長（30分）
-  - LogDebugログ削除：冗長な座標・vnavmesh・戦闘状態詳細ログを大幅削除
-  - 突然終了問題解決：基本的にタイムアウトしない設定に変更
+変更履歴 v1.0.1:
+  - 冗長な変更履歴削除：約400行の膨大な変更履歴を簡潔化
+  - 前進探索機能改善：宝箱発見後もターゲット可能距離まで探索継続
 
-変更履歴 v6.78:
-  - 戦闘中スクリプト開始対応：前提条件チェック改善・戦闘終了待機機能追加
-  - 戦闘中操作可能判定：戦闘中でも自動戦闘プラグインで操作継続とみなす処理
-  - 戦闘終了待機システム：スクリプト開始時戦闘中なら最大5分間戦闘終了を待機
+]]
 
-変更履歴 v6.77:
-  - プラグイン有無チェック無効化：HasPlugin()を常にtrue返却に変更（名前指定問題回避）
-  - Y座標フラッグ連動化：150固定値削除・Vector3.Yによるフラッグ実座標使用
-  - 移動座標精度向上：フラッグの実際のY座標を使用した正確な移動
+-- 設定管理
 
-変更履歴 v6.76:
-  - インストール済みプラグイン一覧調査機能：LogInstalledPlugins()による全プラグイン詳細情報出力
+local CONFIG = {
   - プラグイン検出デバッグ強化：IPC/Svc両方法の詳細ログと実際のプラグイン名確認機能
   - 戦闘プラグイン検出初回調査：EnableCombatPlugins()初回実行時の完全プラグイン一覧出力
   - 正確なプラグイン名特定：インストール済みプラグインの名前・ロード状態・バージョン情報取得
@@ -496,6 +484,14 @@ local PHASES = {
 }
 
 -- ユーティリティ関数
+
+-- 待機関数
+local function Wait(seconds)
+    local endTime = os.clock() + seconds
+    while os.clock() < endTime and not stopRequested do
+        yield("/wait 0.1")
+    end
+end
 
 -- 座標別テレポート処理関数
 local function HandleCoordinateTeleport(x, z, y_corrected)
@@ -1782,6 +1778,16 @@ local function ExecuteMapPurchasePhase()
                         local teleportName = territoryRow.Aetheryte.PlaceName.Name
                         if teleportName and teleportName ~= "" then
                             LogInfo("取得したテレポート先名: " .. tostring(teleportName))
+                            
+                            -- 座標別テレポート先変更チェック
+                            if Instances.Map.Flag.Vector3 then
+                                local flagX = Instances.Map.Flag.Vector3.X
+                                local flagZ = Instances.Map.Flag.Vector3.Z
+                                if math.abs(flagX - 525.47) < 1.0 and math.abs(flagZ - (-799.65)) < 1.0 then
+                                    teleportName = "烈士庵"
+                                    LogInfo("座標マッチ: ドマ上級地図座標 - 烈士庵 へテレポート実行")
+                                end
+                            end
                             
                             -- 自動テレポート実行
                             yield("/tp " .. tostring(teleportName))
