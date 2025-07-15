@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v1.0.0
+                      Treasure Hunt Automation v1.5.5
 ================================================================================
 
 FFXIV トレジャーハント完全自動化スクリプト
@@ -16,21 +16,73 @@ FFXIV トレジャーハント完全自動化スクリプト
   - RSR (Rotation Solver Reborn)
   - AutoHook
   - Teleporter
+  - CBT (ChatCoordinates + Teleport)
+  - Lifestream - ワールド変更機能（価格制限時）
+  - VT (VoidToolkit) - Optional
 
 ================================================================================
 
-変更履歴 v1.0.3:
-  - 座標別テレポート設定システム実装：CONFIG.COORDINATE_TELEPORTSで拡張可能な座標管理
-  - HandleCoordinateTeleport()関数：統一的な座標別テレポート処理
-  - フォールバック形式：座標・テレポート先の追加が容易な設計
+変更履歴 v1.5.5:
+  - Y座標修正処理を復活（烈士庵テレポートは削除、Y座標修正のみ維持）
+  - ドマ上級地図座標525.47, -799.65でY=22.0修正は継続、テレポートのみ無効化
 
-変更履歴 v1.0.2:
-  - 烈士庵自動テレポート機能追加：X=525.47, Z=-799.65座標でY=22.0修正時に自動実行
-  - 全4箇所のY座標修正地点に烈士庵テレポート追加
+変更履歴 v1.5.4:
+  - 烈士庵テレポート機能削除（ドマ上級地図座標 525.47, -799.65対応）
+  - Y座標修正処理からも烈士庵座標を削除
 
-変更履歴 v1.0.1:
-  - 冗長な変更履歴削除：約400行の膨大な変更履歴を簡潔化
-  - 前進探索機能改善：宝箱発見後もターゲット可能距離まで探索継続
+変更履歴 v1.5.3:
+  - 戦闘プラグイン未検出時のフォールバック機能追加
+  - /rotation auto on と /bmrai on を常に実行して自動戦闘を確実に有効化
+
+変更履歴 v1.5.2:
+  - IsInCombat()でのHasTarget()関数順序依存エラー修正
+  - Entity.Target直接チェックに変更して関数依存関係解消
+
+変更履歴 v1.5.1:
+  - HasTarget()関数のSafeExecute戻り値処理修正
+  - 戦闘判定エラー修正
+
+変更履歴 v1.5.0:
+  - 戦闘判定強化: 敵ターゲット存在チェック追加
+  - IsInCombat()で複数判定方法の組み合わせによる確実な戦闘検出
+
+変更履歴 v1.4.0:
+  - ワールド変更後のマーケットボード再接近機能：ReturnToMarketboard()でテレポート+移動+インタラクト
+  - ワールド変更フロー完全対応：/pcall ItemSearch True -1 → ワールド変更 → マーケット再接近 → 購入再開
+  - フェーズ復旧ロジック修正：ワールド変更完了後MAP_PURCHASEフェーズを最初から再実行
+
+変更履歴 v1.3.4:
+  - UI競合回避完全対応：テレポート前にも検索画面を閉じて安全な移動を実現
+  - Lifestreamワールド変更機能：価格制限超過時に8ワールドを自動巡回して最安値探索
+
+変更履歴 v1.3.3:
+  - CBTプラグイン対応：/tpflagコマンドでフラグ地点テレポート実装
+  - 関数定義順序修正：各種関数の呼び出し順序エラーを解決
+
+変更履歴 v1.2.1:
+  - APIエラー修正：HasPluginをIPC.IsInstalledに置き換えてエラー解決
+  - CBTチェック改善：IPC.Automaton.IsTweakEnabled('Commands')でCommands機能確認
+  - 価格変換ロジック修正：SafeExecuteの戻り値処理を正しく修正
+  - デバッグログ強化：価格変換の各段階で詳細ログ出力
+
+変更履歴 v1.2.0:
+  - CBTプラグイン対応：/tpflagコマンドを使用したフラグ地点テレポート実装
+  - テレポート処理統一：Excel API複雑処理を/tpflagに置き換えてシンプル化
+  - エラー処理改善：CBTプラグイン有無チェックとフォールバック機能追加
+
+変更履歴 v1.1.5:
+  - 価格取得判定ロジック修正：SafeExecute戻り値処理の詳細ログ追加
+  - デバッグログ強化：価格変換プロセスの各段階でログ出力
+  - 価格情報取得エラーの原因特定：「24,000取得済み」なのに失敗判定される問題を解決
+
+変更履歴 v1.1.4:
+  - 価格取得ノード構造最適化：GetNode(1,26,4,5)で正確な価格情報取得
+  - ユーザー検証に基づく修正：実際の動作確認済みノード構造を採用
+
+変更履歴 v1.1.1:
+  - SafeExecute関数参照エラー修正：価格関連関数をSafeExecute定義後に移動
+  - 関数定義順序修正：localスコープ問題によるnilエラー解決
+
 
 ]]
 
@@ -57,6 +109,13 @@ local CONFIG = {
             jobName = "戦士",
             searchTerm = "G10"
         }
+    },
+    
+    -- 価格制限設定（ノード26-2-5対応版）
+    PRICE_LIMITS = {
+        ENABLED = true,           -- 価格制限機能有効（ノード構造修正版）
+        MAX_PRICE = 40000,        -- 最大購入価格（ギル）
+        SKIP_EXPENSIVE = true     -- 高額時は購入をスキップ
     },
     
     -- タイムアウト設定（秒）
@@ -93,15 +152,27 @@ local CONFIG = {
         USE_DALAMUD = false -- Dalamud.Log使用フラグ
     },
     
-    -- 座標別テレポート設定
-    COORDINATE_TELEPORTS = {
-        {
-            x = 525.47,
-            z = -799.65,
-            y = 22.0,
-            teleport = "烈士庵",
-            description = "ドマ上級地図座標"
+    -- CBTプラグイン設定
+    CBT = {
+        USE_TPFLAG = true,        -- /tpflagコマンド使用（CBTプラグイン必須）
+        FALLBACK_ENABLED = true   -- CBT未使用時のフォールバック機能
+    },
+    
+    -- Lifestreamワールド変更設定
+    LIFESTREAM = {
+        ENABLED = true,           -- ワールド変更機能有効
+        AUTO_CHANGE_ON_EXPENSIVE = true,  -- 高額時の自動ワールド変更
+        WORLDS = {               -- 巡回ワールドリスト（順番通り）
+            "Anima", "Asura", "Chocobo", "Hades", 
+            "Ixion", "Masamune", "Pandaemonium", "Titan"
         },
+        CURRENT_INDEX = 1,       -- 現在のワールドインデックス
+        MAX_RETRIES = 8,         -- 最大試行回数（全ワールド1周）
+        CHANGE_TIMEOUT = 30      -- ワールド変更タイムアウト（秒）
+    },
+    
+    -- 座標別テレポート設定（フォールバック用）
+    COORDINATE_TELEPORTS = {
         -- 他の座標とテレポート先を追加可能
         -- {
         --     x = 219.05,
@@ -125,6 +196,9 @@ local maxIterations = 1000
 local combatWarningTime = nil  -- 戦闘プラグイン未検出警告のタイムスタンプ
 local domaGuardRecentlyInteracted = false  -- ドマ反乱軍の門兵インタラクト無限ループ防止フラグ
 local combatPluginDebugLogged = false  -- インストール済みプラグイン一覧ログ出力フラグ
+local combatPluginsEnabled = false  -- 戦闘プラグイン有効化状態フラグ
+local flagCoordinatesLogged = false  -- フラッグ座標ログ重複防止フラグ
+local yCoordinateWarningLogged = false  -- Y座標警告ログ重複防止フラグ
 
 -- フェーズ状態管理
 local movementStarted = false
@@ -152,7 +226,8 @@ local function Wait(seconds)
     end
 end
 
--- 座標別テレポート処理関数
+
+-- 座標別テレポート処理関数（フォールバック用）
 local function HandleCoordinateTeleport(x, z, y_corrected)
     if not CONFIG.COORDINATE_TELEPORTS then
         return false
@@ -171,6 +246,7 @@ local function HandleCoordinateTeleport(x, z, y_corrected)
     
     return false
 end
+
 
 function Log(level, message, data)
     local timestamp = os.date("%H:%M:%S")
@@ -277,6 +353,83 @@ local function SafeExecute(func, errorMessage, retryCount)
     return false, "Max retries exceeded"
 end
 
+-- CBTプラグイン使用フラグテレポート関数
+local function TeleportToFlag()
+    -- CBTプラグインが有効かつ設定でtpflag使用が有効な場合
+    local hasCBT = SafeExecute(function()
+        return IPC.IsInstalled("ChatCoordinates") and IPC.Automaton.IsTweakEnabled('Commands')
+    end, "CBTプラグインチェック失敗")
+    
+    if CONFIG.CBT.USE_TPFLAG and hasCBT then
+        LogInfo("CBT /tpflag コマンドでフラグ地点にテレポートします")
+        yield("/tpflag")
+        Wait(8)  -- テレポート完了待機
+        return true
+    end
+    
+    -- CBT未使用またはフォールバック有効時の従来処理
+    if CONFIG.CBT.FALLBACK_ENABLED then
+        LogInfo("CBT未使用 - 従来のテレポート処理にフォールバック")
+        return false  -- 従来処理を継続
+    end
+    
+    LogError("CBTプラグインが見つからず、フォールバックも無効です")
+    return false
+end
+
+
+-- マーケットボード価格取得関数（ノード26-2-5対応版）
+local function GetMarketBoardPrice(searchTerm)
+    if not CONFIG.PRICE_LIMITS.ENABLED then
+        return nil -- 価格制限機能が無効の場合はnilを返す
+    end
+    
+    local success, result = SafeExecute(function()
+        -- マーケットボード検索結果から価格を取得
+        if Addons and Addons.GetAddon then
+            local itemSearchAddon = Addons.GetAddon("ItemSearchResult")
+            if itemSearchAddon and itemSearchAddon.Ready then
+                -- 正しいノード構造 1,26,4,5 で価格を取得
+                local priceNode = itemSearchAddon:GetNode(1,26,4,5)
+                if priceNode and priceNode.Text then
+                    local priceText = priceNode.Text
+                    LogDebug("価格テキスト取得: " .. priceText)
+                    -- 価格テキストから数値を抽出（例: "24,000" → 24000）
+                    local cleanPrice = priceText:gsub(",", ""):gsub("[^%d]", "")
+                    LogDebug("価格クリーニング結果: " .. tostring(cleanPrice))
+                    local price = tonumber(cleanPrice)
+                    LogDebug("tonumber結果: " .. tostring(price))
+                    if price and price > 0 then
+                        LogDebug("価格変換成功: " .. price .. "ギル")
+                        return price
+                    else
+                        LogWarn("価格変換失敗: 元テキスト=" .. tostring(priceText) .. ", クリーン=" .. tostring(cleanPrice) .. ", 数値=" .. tostring(price))
+                        return nil
+                    end
+                else
+                    LogWarn("価格ノードが見つかりません")
+                    return nil
+                end
+            else
+                LogWarn("ItemSearchResultアドオンが準備できていません")
+                return nil
+            end
+        else
+            LogWarn("Addons.GetAddonが利用できません")
+            return nil
+        end
+    end, "Failed to get market board price")
+    
+    LogDebug("SafeExecute結果 - success: " .. tostring(success) .. ", result: " .. tostring(result))
+    
+    if success and result then
+        return result
+    else
+        return nil
+    end
+end
+
+
 -- 待機関数
 local function Wait(seconds)
     local endTime = os.clock() + seconds
@@ -288,6 +441,221 @@ end
 -- タイムアウトチェック
 local function IsTimeout(startTime, timeoutSeconds)
     return os.clock() - startTime > timeoutSeconds
+end
+
+-- Lifestreamワールド変更機能
+local function ChangeToNextWorld()
+    if not CONFIG.LIFESTREAM.ENABLED then
+        LogInfo("Lifestreamワールド変更機能は無効です")
+        return false
+    end
+    
+    -- Lifestreamプラグインの存在確認
+    local hasLifestream = SafeExecute(function()
+        return IPC.IsInstalled("Lifestream")
+    end, "Lifestreamプラグイン確認失敗")
+    
+    if not hasLifestream then
+        LogError("Lifestreamプラグインが見つかりません - ワールド変更をスキップ")
+        return false
+    end
+    
+    -- 次のワールドを取得
+    local currentIndex = CONFIG.LIFESTREAM.CURRENT_INDEX
+    local worlds = CONFIG.LIFESTREAM.WORLDS
+    local nextWorld = worlds[currentIndex]
+    
+    if not nextWorld then
+        LogError("無効なワールドインデックス: " .. tostring(currentIndex))
+        return false
+    end
+    
+    LogInfo("ワールド変更開始: " .. nextWorld .. " (" .. currentIndex .. "/" .. #worlds .. ")")
+    
+    -- ワールド変更実行
+    local changeSuccess = SafeExecute(function()
+        IPC.Lifestream.ChangeWorld(nextWorld)
+        return true
+    end, "Lifestreamワールド変更失敗")
+    
+    if not changeSuccess then
+        LogError("ワールド変更コマンド失敗: " .. nextWorld)
+        -- 次のワールドインデックスを更新（循環）して次回に備える
+        CONFIG.LIFESTREAM.CURRENT_INDEX = (currentIndex % #worlds) + 1
+        return false
+    end
+    
+    -- ワールド変更完了待機
+    LogInfo("ワールド変更中... 完了を待機")
+    local changeStartTime = os.clock()
+    
+    while IsTimeout(changeStartTime, CONFIG.LIFESTREAM.CHANGE_TIMEOUT) == false do
+        local success, isBusy = SafeExecute(function()
+            return IPC.Lifestream.IsBusy()
+        end, "Lifestream状態確認失敗")
+        
+        if success and not isBusy then
+            LogInfo("ワールド変更完了: " .. nextWorld)
+            
+            -- 次のワールドインデックスを更新（循環）
+            CONFIG.LIFESTREAM.CURRENT_INDEX = (currentIndex % #worlds) + 1
+            
+            -- マーケットボード情報リセット
+            Wait(5)  -- ワールド変更後の安定化待機
+            return true
+        end
+        
+        Wait(1)
+    end
+    
+    LogError("ワールド変更タイムアウト: " .. nextWorld .. " (30秒)")
+    -- タイムアウト時も次のワールドインデックスを更新
+    CONFIG.LIFESTREAM.CURRENT_INDEX = (currentIndex % #worlds) + 1
+    return false
+end
+
+-- 価格制限チェック時のワールド変更処理
+local function HandleExpensiveItem(price, itemName)
+    if not CONFIG.LIFESTREAM.AUTO_CHANGE_ON_EXPENSIVE then
+        LogInfo("ワールド変更は無効 - 高額アイテムをスキップ")
+        return false
+    end
+    
+    LogWarn(string.format("高額アイテム検出: %s (%d ギル) - ワールド変更を試行", 
+                         itemName or "不明", price or 0))
+    
+    -- 全ワールド試行済みチェック
+    local triedWorlds = CONFIG.LIFESTREAM.CURRENT_INDEX - 1
+    if triedWorlds >= CONFIG.LIFESTREAM.MAX_RETRIES then
+        LogError("全ワールドで価格制限を超過 - ワールド変更を諦めて購入実行")
+        CONFIG.LIFESTREAM.CURRENT_INDEX = 1  -- リセット
+        return false  -- 購入を続行
+    end
+    
+    -- 検索画面を閉じる
+    LogInfo("検索画面を閉じてからワールド変更を実行します")
+    yield("/pcall ItemSearch True -1")
+    Wait(2)
+    
+    -- 次のワールドに変更
+    if ChangeToNextWorld() then
+        LogInfo("ワールド変更成功 - マーケットボードに再接近してプロセス再開")
+        
+        -- マーケットボードに戻る
+        if ReturnToMarketboard() then
+            LogInfo("マーケットボード再接近成功 - 購入プロセスを再開")
+            return true  -- 購入フェーズを再実行
+        else
+            LogError("マーケットボード再接近失敗 - 現在のワールドで購入続行")
+            return false
+        end
+    else
+        LogError("ワールド変更失敗 - 現在のワールドで購入続行")
+        return false
+    end
+end
+
+-- ワールド変更後のマーケットボード再接近機能
+local function ReturnToMarketboard()
+    LogInfo("マーケットボードに再接近を開始")
+    
+    -- リムサ・ロミンサ下甲板層のマーケットボード座標
+    local marketboardPos = "83.0 40.0 -7.8"
+    
+    -- 現在のゾーンチェック
+    local zoneName = ""
+    if Instances and Instances.ContentFinder then
+        zoneName = Instances.ContentFinder.LocationName or ""
+    end
+    
+    -- リムサ以外の場合はテレポート
+    if not string.find(zoneName, "リムサ") then
+        LogInfo("リムサ・ロミンサにテレポート中")
+        yield("/tp リムサ・ロミンサ:下甲板層")
+        Wait(5)
+        
+        -- テレポート完了まで待機
+        local teleportStart = os.clock()
+        while Player.IsBusy and not IsTimeout(teleportStart, CONFIG.TIMEOUTS.TELEPORT) do
+            Wait(1)
+        end
+        
+        if IsTimeout(teleportStart, CONFIG.TIMEOUTS.TELEPORT) then
+            LogError("テレポートタイムアウト")
+            return false
+        end
+    end
+    
+    -- マーケットボードに移動
+    LogInfo("マーケットボードに移動中")
+    yield("/vnav moveto " .. marketboardPos)
+    Wait(2)
+    
+    -- 移動完了まで待機
+    local moveStart = os.clock()
+    while Player.IsMoving and not IsTimeout(moveStart, 30) do
+        Wait(1)
+    end
+    
+    if IsTimeout(moveStart, 30) then
+        LogError("マーケットボード移動タイムアウト")
+        return false
+    end
+    
+    -- マーケットボードを探してインタラクト
+    LogInfo("マーケットボードを探索中")
+    for i = 1, 5 do
+        yield("/target マーケットボード")
+        Wait(0.5)
+        
+        if HasTarget() then
+            LogInfo("マーケットボードを発見 - インタラクト実行")
+            yield("/interact")
+            Wait(3)
+            
+            -- マーケットボードUI確認
+            if SafeExecute(function()
+                return Addons.GetAddon("RetainerSell") and Addons.GetAddon("RetainerSell").Ready
+            end, "マーケットボードUI確認失敗") then
+                LogInfo("マーケットボード再接近完了")
+                return true
+            end
+        end
+        
+        LogDebug("マーケットボード検索中... (" .. i .. "/5)")
+        Wait(1)
+    end
+    
+    LogError("マーケットボードが見つかりません")
+    return false
+end
+
+-- 価格制限チェック関数（Lifestreamワールド変更対応）
+local function CheckPriceLimit(price, itemName)
+    if not CONFIG.PRICE_LIMITS.ENABLED or not price then
+        return true, false -- 価格制限無効または価格取得失敗時は購入許可、ワールド変更なし
+    end
+    
+    if price > CONFIG.PRICE_LIMITS.MAX_PRICE then
+        LogWarn(string.format("%s の価格が制限値を超過: %d ギル (制限: %d ギル)", 
+                             itemName or "アイテム", price, CONFIG.PRICE_LIMITS.MAX_PRICE))
+        
+        if CONFIG.PRICE_LIMITS.SKIP_EXPENSIVE then
+            -- 高額時のワールド変更処理
+            local shouldChangeWorld = HandleExpensiveItem(price, itemName)
+            if shouldChangeWorld then
+                LogInfo("ワールド変更後に価格再チェック実行")
+                return false, true  -- 購入スキップ、ワールド変更実行
+            else
+                LogInfo("ワールド変更なし - 価格制限により購入をスキップ")
+                return false, false -- 購入スキップ、ワールド変更なし
+            end
+        end
+    else
+        LogInfo(string.format("%s の価格: %d ギル (制限内)", itemName or "アイテム", price))
+    end
+    
+    return true, false  -- 購入許可、ワールド変更なし
 end
 
 -- ================================================================================
@@ -617,7 +985,13 @@ end
 
 -- プラグイン検出（改善版）
 local function HasPlugin(pluginName)
-    return true  -- プラグインの有無に関係なくコマンドを実行
+    local success, result = SafeExecute(function()
+        if IPC and IPC.IsInstalled then
+            return IPC.IsInstalled(pluginName)
+        end
+        return false
+    end, "HasPlugin check failed")
+    return success and result
 end
 
 -- 戦闘プラグイン名のバリアント配列
@@ -658,20 +1032,29 @@ end
 
 -- 戦闘プラグインの有効化
 local function EnableCombatPlugins()
-    -- 初回のみインストール済みプラグイン一覧を出力
-    if not combatPluginDebugLogged then
-        combatPluginDebugLogged = true
+    -- 既に有効化済みなら何もしない
+    if combatPluginsEnabled then
+        return true  -- 既に有効化済み
     end
     
     local hasRSR, rsrName = HasCombatPlugin("rsr")
     local hasBMR, bmrName = HasCombatPlugin("bmr")
     
-    LogInfo("戦闘プラグイン検出状況:")
-    LogInfo("  RSR系: " .. tostring(hasRSR) .. (rsrName and (" (" .. rsrName .. ")") or ""))
-    LogInfo("  BMR系: " .. tostring(hasBMR) .. (bmrName and (" (" .. bmrName .. ")") or ""))
+    -- 初回のみ戦闘プラグイン検出状況をログ出力
+    if not combatPluginDebugLogged then
+        LogInfo("戦闘プラグイン検出状況:")
+        LogInfo("  RSR系: " .. tostring(hasRSR) .. (rsrName and (" (" .. rsrName .. ")") or ""))
+        LogInfo("  BMR系: " .. tostring(hasBMR) .. (bmrName and (" (" .. bmrName .. ")") or ""))
+        combatPluginDebugLogged = true
+    end
     
     if hasRSR then
         LogInfo("RSR自動戦闘を有効化: " .. rsrName)
+        yield("/rotation auto on")
+        Wait(0.5)
+    else
+        -- RSRが検出されない場合でも一般的なコマンドを試行
+        LogInfo("RSR未検出 - 一般的な/rotation auto onコマンドを試行")
         yield("/rotation auto on")
         Wait(0.5)
     end
@@ -680,9 +1063,15 @@ local function EnableCombatPlugins()
         LogInfo("BMR自動戦闘を有効化: " .. bmrName)
         yield("/bmrai on")
         Wait(0.5)
+    else
+        -- BMRが検出されない場合でも一般的なコマンドを試行
+        LogInfo("BMR未検出 - 一般的な/bmrai onコマンドを試行")
+        yield("/bmrai on")
+        Wait(0.5)
     end
     
-    return hasRSR or hasBMR
+    combatPluginsEnabled = true
+    return true  -- フォールバックコマンドを実行したので常にtrueを返す
 end
 
 -- 戦闘プラグインの無効化
@@ -701,6 +1090,9 @@ local function DisableCombatPlugins()
         yield("/bmrai off")
         Wait(0.5)
     end
+    
+    -- 戦闘プラグイン無効化完了フラグをリセット
+    combatPluginsEnabled = false
 end
 
 -- 直接的な戦闘状態チェック（Entity.Player.IsInCombat直接アクセス）
@@ -717,6 +1109,15 @@ end
 -- 戦闘状態チェック（Entity.Player.IsInCombat使用）
 local function IsInCombat()
     local success, result = SafeExecute(function()
+        -- 敵のターゲットが存在する場合は戦闘中とみなす
+        if Entity and Entity.Target and Entity.Target.Name then
+            local targetType = Entity.Target.Type
+            -- 敵タイプ(BattleNpc)の場合は戦闘中
+            if targetType == 2 then  -- BattleNpc
+                return true
+            end
+        end
+        
         -- 優先: Entity.Player.IsInCombatによる戦闘判定
         if Entity and Entity.Player and Entity.Player.IsInCombat ~= nil then
             local inCombat = Entity.Player.IsInCombat
@@ -778,7 +1179,7 @@ end
 
 -- ターゲット関連
 local function HasTarget()
-    return SafeExecute(function()
+    local success, result = SafeExecute(function()
         -- Entity.Targetでターゲット確認
         if Entity and Entity.Target and Entity.Target.Name then
             local targetName = Entity.Target.Name
@@ -800,7 +1201,9 @@ local function HasTarget()
         end
         
         return false
-    end, "Failed to check target") and true or false
+    end, "Failed to check target")
+    
+    return success and result or false
 end
 
 -- ターゲット名取得関数
@@ -886,7 +1289,7 @@ local function CheckPrerequisites()
     end
     
     -- プラグインチェック（警告のみ）
-    local recommendedPlugins = {"vnavmesh", "RotationSolverReborn", "AutoHook", "Teleporter"}
+    local recommendedPlugins = {"vnavmesh", "RotationSolverReborn", "AutoHook", "Teleporter", "ChatCoordinates", "Lifestream"}
     for _, plugin in ipairs(recommendedPlugins) do
         if not HasPlugin(plugin) then
             LogWarn("推奨プラグインが見つかりません: " .. plugin)
@@ -1156,7 +1559,10 @@ local function GetDistanceToFlag()
                 -- Vector2は実際にはX,Z座標（Y座標をVector3から取得）
                 local yCoord = (Instances.Map.Flag.Vector3 and Instances.Map.Flag.Vector3.Y) or 0
                 flagPos = {X = flagVec2.X, Y = yCoord, Z = flagVec2.Y}
-                LogInfo("フラッグ座標（Vector2+Vector3.Y）: X=" .. string.format("%.2f", flagPos.X) .. ", Y=" .. string.format("%.2f", flagPos.Y) .. ", Z=" .. string.format("%.2f", flagPos.Z))
+                if not flagCoordinatesLogged then
+                    LogInfo("フラッグ座標（Vector2+Vector3.Y）: X=" .. string.format("%.2f", flagPos.X) .. ", Y=" .. string.format("%.2f", flagPos.Y) .. ", Z=" .. string.format("%.2f", flagPos.Z))
+                    flagCoordinatesLogged = true
+                end
             end
         elseif Instances.Map.Flag.Vector2 then
             -- Vector2が利用可能な場合（X,Z座標、Y座標をVector3から取得またはデフォルト）
@@ -1202,15 +1608,17 @@ local function GetDistanceToFlag()
             if math.abs(flagPos.X - 525.47) < 1.0 and math.abs(flagPos.Z - (-799.65)) < 1.0 then
                 flagPos.Y = 22.0
                 LogInfo("Y座標修正適用: X=" .. string.format("%.2f", flagPos.X) .. ", Z=" .. string.format("%.2f", flagPos.Z) .. " → Y=22.0")
-                teleportHandled = HandleCoordinateTeleport(flagPos.X, flagPos.Z, flagPos.Y)
+                -- テレポートは実行しない（烈士庵削除）
             elseif math.abs(flagPos.X - 219.05) < 1.0 and math.abs(flagPos.Z - (-66.08)) < 1.0 then
                 flagPos.Y = 95.224
                 LogInfo("Y座標修正適用: X=" .. string.format("%.2f", flagPos.X) .. ", Z=" .. string.format("%.2f", flagPos.Z) .. " → Y=95.224")
                 teleportHandled = HandleCoordinateTeleport(flagPos.X, flagPos.Z, flagPos.Y)
             else
-                -- デフォルトフォールバック値
-                flagPos.Y = 150.0
-                LogInfo("Y座標フォールバック: Y=150.0適用")
+                -- Y座標が0の場合はそのまま使用（フォールバック無し）
+                if not yCoordinateWarningLogged then
+                    LogWarn("Y座標が0です。そのまま使用します")
+                    yCoordinateWarningLogged = true
+                end
             end
         end
         
@@ -1356,7 +1764,7 @@ end
 
 -- 初期化フェーズ
 local function ExecuteInitPhase()
-    LogInfo("トレジャーハント自動化を開始します")
+    LogInfo("トレジャーハント自動化 v1.5.5 を開始します")
     LogInfo("設定: " .. CONFIG.MAP_TYPE .. " 地図")
     
     if not CheckPrerequisites() then
@@ -1424,6 +1832,23 @@ local function ExecuteMapPurchasePhase()
         
         LogInfo("フラグ地点にテレポートします")
         
+        -- テレポート前に検索画面が開いている場合は閉じる
+        if IsAddonVisible("ItemSearch") then
+            LogInfo("検索画面を閉じてからテレポートします")
+            yield("/pcall ItemSearch True -1")
+            Wait(2)
+        end
+        
+        -- CBT /tpflagコマンドを優先使用
+        if TeleportToFlag() then
+            LogInfo("CBT /tpflag テレポート完了")
+            ChangePhase("MOVEMENT", "地図解読・CBTテレポート完了")
+            return
+        end
+        
+        -- CBT未使用時のフォールバック処理
+        LogInfo("CBT未使用 - 従来のテレポート処理を実行")
+        
         -- Excel.GetRow APIを使用してテレポート先名を取得
         local teleportSuccess = SafeExecute(function()
             if Instances and Instances.Map and Instances.Map.Flag and Instances.Map.Flag.TerritoryId then
@@ -1440,12 +1865,6 @@ local function ExecuteMapPurchasePhase()
                             
                             -- 座標別テレポート先変更チェック
                             if Instances.Map.Flag.Vector3 then
-                                local flagX = Instances.Map.Flag.Vector3.X
-                                local flagZ = Instances.Map.Flag.Vector3.Z
-                                if math.abs(flagX - 525.47) < 1.0 and math.abs(flagZ - (-799.65)) < 1.0 then
-                                    teleportName = "烈士庵"
-                                    LogInfo("座標マッチ: ドマ上級地図座標 - 烈士庵 へテレポート実行")
-                                end
                             end
                             
                             -- 自動テレポート実行
@@ -1486,6 +1905,13 @@ local function ExecuteMapPurchasePhase()
     
     -- 現在地チェック（リムサ・ロミンサにいない場合のみテレポート）
     if not IsInLimsa() then
+        -- テレポート前に検索画面が開いている場合は閉じる
+        if IsAddonVisible("ItemSearch") then
+            LogInfo("検索画面を閉じてからリムサ・ロミンサにテレポートします")
+            yield("/pcall ItemSearch True -1")
+            Wait(2)
+        end
+        
         LogInfo("リムサ・ロミンサへテレポート中...")
         yield("/tp リムサ・ロミンサ")
         Wait(10)  -- テレポート完了待機
@@ -1527,8 +1953,18 @@ local function ExecuteMapPurchasePhase()
         -- 地図自動購入処理（正しいpcallシーケンス使用）
         LogInfo("マーケットボードで" .. CONFIG.MAP_TYPE .. "地図を自動購入中...")
         
-        -- マーケットボード検索画面表示待機
-        yield("/waitaddon ItemSearch")
+        -- マーケットボード検索画面表示待機（手動チェック）
+        LogInfo("マーケットボード検索画面の表示を待機中...")
+        local searchWaitTime = os.clock()
+        while not IsAddonVisible("ItemSearch") and not IsTimeout(searchWaitTime, 10) do
+            Wait(0.5)
+        end
+        
+        if IsAddonVisible("ItemSearch") then
+            LogInfo("ItemSearch画面表示確認")
+        else
+            LogWarn("ItemSearch画面表示タイムアウト - 手動操作を推奨")
+        end
         Wait(0.5)
         
         local searchTerm = mapConfig.searchTerm
@@ -1545,20 +1981,62 @@ local function ExecuteMapPurchasePhase()
         yield("/pcall ItemSearch True 5 0")
         Wait(0.5)
         
-        -- 2. 検索結果画面表示待機
-        yield("/waitaddon ItemSearchResult")
+        -- 2. 検索結果画面表示待機（手動チェック）
+        LogInfo("検索結果画面の表示を待機中...")
+        local resultWaitTime = os.clock()
+        while not IsAddonVisible("ItemSearchResult") and not IsTimeout(resultWaitTime, 10) do
+            Wait(0.5)
+        end
+        
+        if IsAddonVisible("ItemSearchResult") then
+            LogInfo("ItemSearchResult画面表示確認")
+        else
+            LogWarn("ItemSearchResult画面表示タイムアウト - 手動操作を推奨")
+        end
         Wait(0.5)
         
         -- 3. アイテム履歴を閉じる
         yield("/pcall ItemHistory True -1")
         Wait(0.5)
         
-        -- 4. 最初のアイテムを選択（購入画面表示）
+        -- 4. 価格チェック（価格制限機能有効時）
+        if CONFIG.PRICE_LIMITS.ENABLED then
+            LogInfo("価格情報を取得中...")
+            Wait(1) -- 価格情報表示待機
+            
+            local price = GetMarketBoardPrice(searchTerm)
+            if price then
+                local canPurchase, shouldChangeWorld = CheckPriceLimit(price, CONFIG.MAP_TYPE .. "地図")
+                
+                if not canPurchase then                   
+                    if shouldChangeWorld then
+                        LogInfo("ワールド変更処理を実行します")
+                        -- ワールド変更は HandleExpensiveItem 内で実行される
+                        -- 成功した場合はマーケットボード再接近も完了している
+                        -- MAP_PURCHASEフェーズを継続（最初から再実行）
+                        return
+                    else
+                        -- 検索画面を閉じる（ワールド変更なしの場合のみ）
+                        yield("/pcall ItemSearch True -1")
+                        Wait(2)
+                        
+                        LogWarn("価格制限により地図購入をスキップしました")
+                        LogInfo("手動で" .. CONFIG.MAP_TYPE .. "地図を準備してください")
+                        ChangePhase("COMPLETE", "価格制限による購入スキップ")
+                        return
+                    end
+                end
+            else
+                LogWarn("価格情報を取得できませんでした - 購入を続行します")
+            end
+        end
+        
+        -- 5. 最初のアイテムを選択（購入画面表示）
         LogInfo("最初のアイテムを選択中...")
         yield("/pcall ItemSearchResult True 2 0")
         Wait(2)
         
-        -- 5. 購入確認ダイアログの処理
+        -- 6. 購入確認ダイアログの処理
         local confirmWaitTime = os.clock()
         while not IsAddonVisible("SelectYesno") and not IsTimeout(confirmWaitTime, 5) do
             Wait(0.5)
@@ -1620,6 +2098,10 @@ local function ExecuteMovementPhase()
     if not movementStarted then
         LogInfo("宝の場所への移動を開始します")
         
+        -- 新しい移動開始時にログフラグをリセット
+        flagCoordinatesLogged = false
+        yCoordinateWarningLogged = false
+        
         -- 食事効果チェック（移動開始時）
         CheckAndUseFoodItem()
         
@@ -1671,14 +2153,16 @@ local function ExecuteMovementPhase()
                     if math.abs(flagPos.X - 525.47) < 1.0 and math.abs(flagPos.Z - (-799.65)) < 1.0 then
                         flagPos.Y = 22.0
                         LogInfo("移動時Y座標修正適用: X=" .. string.format("%.2f", flagPos.X) .. ", Z=" .. string.format("%.2f", flagPos.Z) .. " → Y=22.0")
-                        teleportHandled = HandleCoordinateTeleport(flagPos.X, flagPos.Z, flagPos.Y)
+                        -- テレポートは実行しない（烈士庵削除）
                     elseif math.abs(flagPos.X - 219.05) < 1.0 and math.abs(flagPos.Z - (-66.08)) < 1.0 then
                         flagPos.Y = 95.224
                         LogInfo("移動時Y座標修正適用: X=" .. string.format("%.2f", flagPos.X) .. ", Z=" .. string.format("%.2f", flagPos.Z) .. " → Y=95.224")
                         teleportHandled = HandleCoordinateTeleport(flagPos.X, flagPos.Z, flagPos.Y)
                     else
-                        flagPos.Y = 150.0
-                        LogInfo("移動時Y座標フォールバック: Y=150.0適用")
+                        if not yCoordinateWarningLogged then
+                            LogWarn("移動時Y座標が0です。そのまま使用します")
+                            yCoordinateWarningLogged = true
+                        end
                     end
                 end
                 
@@ -1717,7 +2201,7 @@ local function ExecuteMovementPhase()
                         -- Y座標をフラッグから取得
                         flagPos.Y = (Instances.Map.Flag.Vector3 and Instances.Map.Flag.Vector3.Y) or 0
                         -- IPC.vnavmesh.PathfindAndMoveToをyieldコマンドに置換（SEHException回避）
-                        if flagPos.Y ~= 0 and flagPos.Y ~= 150.0 then
+                        if flagPos.Y ~= 0 then
                             yield("/vnav flyto " .. flagPos.X .. " " .. flagPos.Y .. " " .. flagPos.Z)
                         else
                             yield("/vnav flyflag")
@@ -1964,14 +2448,16 @@ local function ExecuteMovementPhase()
                         if math.abs(flagPos.X - 525.47) < 1.0 and math.abs(flagPos.Z - (-799.65)) < 1.0 then
                             flagPos.Y = 22.0
                             LogInfo("追加移動時Y座標修正適用: X=" .. string.format("%.2f", flagPos.X) .. ", Z=" .. string.format("%.2f", flagPos.Z) .. " → Y=22.0")
-                            teleportHandled = HandleCoordinateTeleport(flagPos.X, flagPos.Z, flagPos.Y)
+                            -- テレポートは実行しない（烈士庵削除）
                         elseif math.abs(flagPos.X - 219.05) < 1.0 and math.abs(flagPos.Z - (-66.08)) < 1.0 then
                             flagPos.Y = 95.224
                             LogInfo("追加移動時Y座標修正適用: X=" .. string.format("%.2f", flagPos.X) .. ", Z=" .. string.format("%.2f", flagPos.Z) .. " → Y=95.224")
                             teleportHandled = HandleCoordinateTeleport(flagPos.X, flagPos.Z, flagPos.Y)
                         else
-                            flagPos.Y = 150.0
-                            LogInfo("追加移動時Y座標フォールバック: Y=150.0適用")
+                            if not yCoordinateWarningLogged then
+                                LogWarn("追加移動時Y座標が0です。そのまま使用します")
+                                yCoordinateWarningLogged = true
+                            end
                         end
                     end
                     
@@ -2043,14 +2529,16 @@ local function ExecuteMovementPhase()
                         if math.abs(flagPos.X - 525.47) < 1.0 and math.abs(flagPos.Z - (-799.65)) < 1.0 then
                             flagPos.Y = 22.0
                             LogInfo("緊急再移動時Y座標修正適用: X=" .. string.format("%.2f", flagPos.X) .. ", Z=" .. string.format("%.2f", flagPos.Z) .. " → Y=22.0")
-                            teleportHandled = HandleCoordinateTeleport(flagPos.X, flagPos.Z, flagPos.Y)
+                            -- テレポートは実行しない（烈士庵削除）
                         elseif math.abs(flagPos.X - 219.05) < 1.0 and math.abs(flagPos.Z - (-66.08)) < 1.0 then
                             flagPos.Y = 95.224
                             LogInfo("緊急再移動時Y座標修正適用: X=" .. string.format("%.2f", flagPos.X) .. ", Z=" .. string.format("%.2f", flagPos.Z) .. " → Y=95.224")
                             teleportHandled = HandleCoordinateTeleport(flagPos.X, flagPos.Z, flagPos.Y)
                         else
-                            flagPos.Y = 150.0
-                            LogInfo("緊急再移動時Y座標フォールバック: Y=150.0適用")
+                            if not yCoordinateWarningLogged then
+                                LogWarn("緊急再移動時Y座標が0です。そのまま使用します")
+                                yCoordinateWarningLogged = true
+                            end
                         end
                     end
                     
@@ -2497,22 +2985,22 @@ end
 
 -- 戦闘フェーズ
 local function ExecuteCombatPhase()
-    local isInCombat = IsDirectCombat()
+    local isInCombat = IsInCombat()
     
     if isInCombat then
-        LogInfo("戦闘中。自動戦闘を開始します")
-        
-        -- 新しい戦闘プラグイン検出・有効化システム
-        local hasAnyPlugin = EnableCombatPlugins()
-        
-        -- 戦闘プラグインが一つも検出されない場合の処理
-        if not hasAnyPlugin then
-            -- 初回のみ警告表示（ログスパム防止）
-            local currentTime = os.clock()
-            if not combatWarningTime or (currentTime - combatWarningTime) > 30 then
+        -- 戦闘開始時のみログ出力（重複防止）
+        if not combatPluginsEnabled then
+            LogInfo("戦闘開始 - 自動戦闘プラグイン有効化中")
+            
+            -- 新しい戦闘プラグイン検出・有効化システム
+            local hasAnyPlugin = EnableCombatPlugins()
+            
+            -- 戦闘プラグインが一つも検出されない場合の処理
+            if not hasAnyPlugin then
                 LogWarn("自動戦闘プラグインが検出されません。手動戦闘または戦闘タイムアウトまで待機")
                 LogWarn("対応プラグイン: RotationSolverReborn/RSR, BossModReborn/BossMod/BMR")
-                combatWarningTime = currentTime
+            else
+                LogInfo("自動戦闘プラグイン有効化完了")
             end
         end
         
@@ -2520,10 +3008,11 @@ local function ExecuteCombatPhase()
         return
     else
         -- 戦闘していない場合の処理
-        LogInfo("戦闘状態ではありません")
-        
-        -- 自動戦闘を停止（もし有効だった場合）
-        DisableCombatPlugins()
+        if combatPluginsEnabled then
+            LogInfo("戦闘終了 - 自動戦闘プラグイン無効化")
+            -- 自動戦闘を停止（もし有効だった場合）
+            DisableCombatPlugins()
+        end
         
         -- 1. 最初に発掘失敗チェック（「この周囲に宝箱はないようだ……」対応）
         local excavationFailed = false
@@ -2580,14 +3069,20 @@ local function ExecuteCombatPhase()
                         goto next_target
                     end
                     
-                    -- 距離が3yalm以上の場合のみ移動
+                    -- 距離が3yalm以上の場合のみ移動（マウント召喚後）
                     if currentDistance > 3.0 then
+                        -- 宝箱移動前にマウント召喚
+                        if SummonPowerLoader() then
+                            LogInfo("宝箱移動のためマウント召喚完了")
+                        end
+                        
                         if IsVNavReady() then
-                            yield("/vnav movetarget")
+                            LogInfo("マウント乗車状態で宝箱へ飛行移動開始")
+                            yield("/vnav flytarget")
                             Wait(1)
                             
-                            -- 距離が3yalm以下になるまで移動（タイムアウト付き）
-                            local moveTimeout = 15
+                            -- 距離が3yalm以下になるまで飛行移動（タイムアウト付き）
+                            local moveTimeout = 30  -- 飛行移動のため30秒に延長
                             local moveStartTime = os.clock()
                             
                             while GetDistanceToTarget() > 3.0 and not IsTimeout(moveStartTime, moveTimeout) do
@@ -2726,6 +3221,15 @@ local function AutoMoveForward()
             if HasTarget() then
                 local distance = GetDistanceToTarget()
                 local targetDistance = CONFIG.TARGET_DISTANCES.TREASURE_CHEST
+                
+                -- 距離999.0の場合、ダンジョン脱出をチェック
+                if distance >= 999.0 then
+                    if not IsInDuty() then
+                        yield("/automove off")
+                        LogInfo("ダンジョン脱出を検出 - 前進探索を停止")
+                        return "dungeon_exit"
+                    end
+                end
                 
                 if distance <= targetDistance then
                     yield("/automove off")
@@ -3021,6 +3525,13 @@ end
 local function ExecuteDungeonPhase()
     LogInfo("ダンジョン探索を開始します")
     
+    -- ダンジョン脱出チェック（最優先）
+    if not IsInDuty() then
+        LogInfo("ダンジョンから脱出しました - 完了フェーズに移行")
+        ChangePhase("COMPLETE", "ダンジョン脱出完了")
+        return
+    end
+    
     -- 食事効果チェック（ダンジョン開始時）
     CheckAndUseFoodItem()
     
@@ -3154,7 +3665,13 @@ local function ExecuteDungeonPhase()
                 -- 何もターゲットできない場合は前進探索
                 local foundTarget = AutoMoveForward()
                 if foundTarget then
-                    LogInfo("前進探索で発見: " .. foundTarget .. " - 次回ループで処理")
+                    if foundTarget == "dungeon_exit" then
+                        LogInfo("ダンジョン脱出を検出 - 完了フェーズに移行")
+                        ChangePhase("COMPLETE", "ダンジョン脱出完了")
+                        return
+                    else
+                        LogInfo("前進探索で発見: " .. foundTarget .. " - 次回ループで処理")
+                    end
                 end
             end
         end
@@ -3220,7 +3737,7 @@ local phaseExecutors = {
 
 -- メインループ（エラーハンドラー付き）
 local function SafeMainLoop()
-    LogInfo("Treasure Hunt Automation v1.0.0 開始")
+    LogInfo("Treasure Hunt Automation v1.5.5 開始")
     LogInfo("安定版リリース: 包括的SEHException対策・無限ループ修正・IPC危険API回避完了")
     
     -- スクリプト開始時に戦闘中の場合は自動戦闘を有効化し、戦闘終了まで待機
