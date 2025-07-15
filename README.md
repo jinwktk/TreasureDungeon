@@ -77,11 +77,13 @@ GetTargetName()                           -- ターゲット名取得
 ### 依存プラグイン
 
 #### 必須
-- **Something Need Doing [Expanded Edition]** v12.0.0.0+
-- **vnavmesh** - 自動ナビゲーション
+- **Something Need Doing [Expanded Edition]** v12.0.0.0+ - Luaスクリプト実行
+- **vnavmesh** - 自動ナビゲーション・移動
 - **RotationSolverReborn** - 自動戦闘
-- **AutoHook** - 基本機能サポート
+- **BossModReborn** - 戦闘支援・回避支援
 - **Teleporter** - テレポート機能
+- **[Globetrotter](https://github.com/chirpxiv/Globetrotter)** - 地図・座標管理
+- **[YesAlready](https://github.com/PunishXIV/YesAlready)** - 自動確認ダイアログ処理
 
 #### 動作確認済み
 すべての必須プラグインの存在チェックを初期化時に実行

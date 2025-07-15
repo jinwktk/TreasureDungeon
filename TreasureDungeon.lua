@@ -1,8 +1,7 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v1.5.5
+                      Treasure Hunt Automation v1.5.8
 ================================================================================
-
 FFXIV トレジャーハント完全自動化スクリプト
 
 主な機能:
@@ -17,76 +16,28 @@ FFXIV トレジャーハント完全自動化スクリプト
   - AutoHook
   - Teleporter
   - CBT (ChatCoordinates + Teleport)
+  - AutoDuty - 定期修理機能
   - Lifestream - ワールド変更機能（価格制限時）
   - VT (VoidToolkit) - Optional
 
-================================================================================
+Author: Claude + jinwktk
+Date: 2025-07-15
 
-変更履歴 v1.5.5:
-  - Y座標修正処理を復活（烈士庵テレポートは削除、Y座標修正のみ維持）
-  - ドマ上級地図座標525.47, -799.65でY=22.0修正は継続、テレポートのみ無効化
+変更履歴:
+v1.5.8 (2025-07-15):
+- AutoDuty定期修理機能追加: /ad repairコマンドによる5分間隔での自動修理対応
+- CONFIG.AUTO_REPAIR設定セクション追加（ENABLED/INTERVAL/COMMAND）
+- PerformRepair()関数実装: 前回実行時刻管理による重複防止
+- メインループ内で10イテレーション毎に自動修理実行
 
-変更履歴 v1.5.4:
-  - 烈士庵テレポート機能削除（ドマ上級地図座標 525.47, -799.65対応）
-  - Y座標修正処理からも烈士庵座標を削除
+v1.5.7 (2025-07-14):
+- MetaData削除対応版: シンプルな直接CONFIG定義方式・構文エラー修正完了
+- 価格制限機能統合: CONFIG.PRICE_LIMITS設定による柔軟な価格制御
+--]]
 
-変更履歴 v1.5.3:
-  - 戦闘プラグイン未検出時のフォールバック機能追加
-  - /rotation auto on と /bmrai on を常に実行して自動戦闘を確実に有効化
-
-変更履歴 v1.5.2:
-  - IsInCombat()でのHasTarget()関数順序依存エラー修正
-  - Entity.Target直接チェックに変更して関数依存関係解消
-
-変更履歴 v1.5.1:
-  - HasTarget()関数のSafeExecute戻り値処理修正
-  - 戦闘判定エラー修正
-
-変更履歴 v1.5.0:
-  - 戦闘判定強化: 敵ターゲット存在チェック追加
-  - IsInCombat()で複数判定方法の組み合わせによる確実な戦闘検出
-
-変更履歴 v1.4.0:
-  - ワールド変更後のマーケットボード再接近機能：ReturnToMarketboard()でテレポート+移動+インタラクト
-  - ワールド変更フロー完全対応：/pcall ItemSearch True -1 → ワールド変更 → マーケット再接近 → 購入再開
-  - フェーズ復旧ロジック修正：ワールド変更完了後MAP_PURCHASEフェーズを最初から再実行
-
-変更履歴 v1.3.4:
-  - UI競合回避完全対応：テレポート前にも検索画面を閉じて安全な移動を実現
-  - Lifestreamワールド変更機能：価格制限超過時に8ワールドを自動巡回して最安値探索
-
-変更履歴 v1.3.3:
-  - CBTプラグイン対応：/tpflagコマンドでフラグ地点テレポート実装
-  - 関数定義順序修正：各種関数の呼び出し順序エラーを解決
-
-変更履歴 v1.2.1:
-  - APIエラー修正：HasPluginをIPC.IsInstalledに置き換えてエラー解決
-  - CBTチェック改善：IPC.Automaton.IsTweakEnabled('Commands')でCommands機能確認
-  - 価格変換ロジック修正：SafeExecuteの戻り値処理を正しく修正
-  - デバッグログ強化：価格変換の各段階で詳細ログ出力
-
-変更履歴 v1.2.0:
-  - CBTプラグイン対応：/tpflagコマンドを使用したフラグ地点テレポート実装
-  - テレポート処理統一：Excel API複雑処理を/tpflagに置き換えてシンプル化
-  - エラー処理改善：CBTプラグイン有無チェックとフォールバック機能追加
-
-変更履歴 v1.1.5:
-  - 価格取得判定ロジック修正：SafeExecute戻り値処理の詳細ログ追加
-  - デバッグログ強化：価格変換プロセスの各段階でログ出力
-  - 価格情報取得エラーの原因特定：「24,000取得済み」なのに失敗判定される問題を解決
-
-変更履歴 v1.1.4:
-  - 価格取得ノード構造最適化：GetNode(1,26,4,5)で正確な価格情報取得
-  - ユーザー検証に基づく修正：実際の動作確認済みノード構造を採用
-
-変更履歴 v1.1.1:
-  - SafeExecute関数参照エラー修正：価格関連関数をSafeExecute定義後に移動
-  - 関数定義順序修正：localスコープ問題によるnilエラー解決
-
-
-]]
-
+-- ================================================================================
 -- 設定管理
+-- ================================================================================
 
 local CONFIG = {
     -- 地図設定
@@ -111,9 +62,9 @@ local CONFIG = {
         }
     },
     
-    -- 価格制限設定（ノード26-2-5対応版）
+    -- 価格制限設定
     PRICE_LIMITS = {
-        ENABLED = true,           -- 価格制限機能有効（ノード構造修正版）
+        ENABLED = true,           -- 価格制限機能有効
         MAX_PRICE = 40000,        -- 最大購入価格（ギル）
         SKIP_EXPENSIVE = true     -- 高額時は購入をスキップ
     },
@@ -130,9 +81,9 @@ local CONFIG = {
     -- オブジェクト別ターゲット可能距離設定
     TARGET_DISTANCES = {
         MARKET_BOARD = 3.0,    -- マーケットボード
-        TREASURE_CHEST = 5.0,  -- 宝箱
-        NPC = 4.0,             -- NPC
-        DEFAULT = 5.0          -- デフォルト
+        TREASURE_CHEST = 3.0,  -- 宝箱
+        NPC = 3.0,             -- NPC
+        DEFAULT = 3.0          -- デフォルト
     },
     
     -- リトライ設定
@@ -156,6 +107,13 @@ local CONFIG = {
     CBT = {
         USE_TPFLAG = true,        -- /tpflagコマンド使用（CBTプラグイン必須）
         FALLBACK_ENABLED = true   -- CBT未使用時のフォールバック機能
+    },
+    
+    -- AutoDuty修理設定
+    AUTO_REPAIR = {
+        ENABLED = true,           -- 自動修理機能有効
+        INTERVAL = 300,          -- 修理実行間隔（5分=300秒）
+        COMMAND = "/ad repair"   -- AutoDutyの修理コマンド
     },
     
     -- Lifestreamワールド変更設定
@@ -199,6 +157,7 @@ local combatPluginDebugLogged = false  -- インストール済みプラグイ�
 local combatPluginsEnabled = false  -- 戦闘プラグイン有効化状態フラグ
 local flagCoordinatesLogged = false  -- フラッグ座標ログ重複防止フラグ
 local yCoordinateWarningLogged = false  -- Y座標警告ログ重複防止フラグ
+local lastRepairTime = 0  -- 最後の修理実行時刻
 
 -- フェーズ状態管理
 local movementStarted = false
@@ -245,6 +204,23 @@ local function HandleCoordinateTeleport(x, z, y_corrected)
     end
     
     return false
+end
+
+-- 修理関数
+local function PerformRepair()
+    if not CONFIG.AUTO_REPAIR.ENABLED then
+        return
+    end
+    
+    local currentTime = os.clock()
+    
+    -- 前回の修理から指定した間隔が経過した場合のみ実行
+    if currentTime - lastRepairTime >= CONFIG.AUTO_REPAIR.INTERVAL then
+        LogInfo("定期修理実行: " .. CONFIG.AUTO_REPAIR.COMMAND)
+        yield(CONFIG.AUTO_REPAIR.COMMAND)
+        lastRepairTime = currentTime
+        Wait(2)  -- 修理処理の完了待機
+    end
 end
 
 
@@ -2943,6 +2919,13 @@ local function CheckForTreasureChest()
             end
         end
         
+        -- インタラクト前にBMRaiを無効化（自動移動阻害防止）
+        if HasPlugin("BossMod") or HasPlugin("BossModReborn") then
+            yield("/bmrai off")
+            LogInfo("宝箱インタラクト前にBMRai無効化")
+            Wait(0.5)
+        end
+        
         -- インタラクト前に宝箱を確実にターゲット
         LogInfo("宝箱を再ターゲットしてインタラクト実行")
         yield("/target 宝箱")
@@ -3737,8 +3720,8 @@ local phaseExecutors = {
 
 -- メインループ（エラーハンドラー付き）
 local function SafeMainLoop()
-    LogInfo("Treasure Hunt Automation v1.5.5 開始")
-    LogInfo("安定版リリース: 包括的SEHException対策・無限ループ修正・IPC危険API回避完了")
+    LogInfo("Treasure Hunt Automation v1.5.8 開始")
+    LogInfo("AutoDuty定期修理機能追加版: /ad repairコマンドによる5分間隔での自動修理対応")
     
     -- スクリプト開始時に戦闘中の場合は自動戦闘を有効化し、戦闘終了まで待機
     if IsInCombat() then
@@ -3769,13 +3752,14 @@ local function SafeMainLoop()
     while not stopRequested and iteration < maxIterations do
         iteration = iteration + 1
         
-        -- 定期的な食事効果・インベントリ・マテリア精製チェック（10イテレーションごと）
+        -- 定期的な食事効果・インベントリ・マテリア精製・修理チェック（10イテレーションごと）
         if iteration % 10 == 0 then
             CheckAndUseFoodItem()
             if not CheckAndManageInventory() then
                 break  -- インベントリ満杯の場合はループを終了
             end
             CheckAndExtractMateria()
+            PerformRepair()  -- AutoDutyの修理機能を呼び出し
         end
         
         -- タイムアウトチェック
