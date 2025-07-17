@@ -244,7 +244,7 @@ end
 
 -- ステータス残り時間取得関数（GitHubコード参考）
 local function GetStatusTimeRemaining(statusID)
-    local success, result = SafeExecute(function()
+    local success, result = pcall(function()
         if Player and Player.StatusList then
             local statuses = Player.StatusList
             for i = 0, statuses.Length - 1 do
@@ -255,14 +255,14 @@ local function GetStatusTimeRemaining(statusID)
             end
         end
         return 0
-    end, "ステータス残り時間取得エラー")
+    end)
     
     return success and result or 0
 end
 
 -- 食事バフ存在チェック関数
 local function HasFoodBuff()
-    local success, result = SafeExecute(function()
+    local success, result = pcall(function()
         -- SND v12.0.0+: Player.HasStatus APIを使用して食事バフを確認
         if Player and Player.HasStatus then
             -- 食事バフのStatus ID: 48（Well Fed）
@@ -275,7 +275,7 @@ local function HasFoodBuff()
             LogDebug("食事バフ確認API利用不可 - スキップ")
             return true  -- API利用不可時はバフありと仮定
         end
-    end, "食事バフ確認エラー")
+    end)
     
     return success and result or true
 end
@@ -305,7 +305,7 @@ end
 
 -- 戦闘状態チェック関数
 local function IsInCombat()
-    local success, result = SafeExecute(function()
+    local success, result = pcall(function()
         -- SND v12.0.0+: Player.InCombat プロパティ
         if Player and Player.InCombat ~= nil then
             return Player.InCombat
@@ -316,7 +316,7 @@ local function IsInCombat()
         else
             return false  -- 不明時は非戦闘として扱う
         end
-    end, "戦闘状態確認エラー")
+    end)
     
     return success and result or false
 end
