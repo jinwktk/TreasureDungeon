@@ -67,7 +67,7 @@ local CONFIG = {
     -- 価格制限設定
     PRICE_LIMITS = {
         ENABLED = true,           -- 価格制限機能有効
-        MAX_PRICE = 40000,        -- 最大購入価格（ギル）
+        MAX_PRICE = 30000,        -- 最大購入価格（ギル）
         SKIP_EXPENSIVE = true     -- 高額時は購入をスキップ
     },
     
@@ -131,12 +131,18 @@ local CONFIG = {
     LIFESTREAM = {
         ENABLED = true,           -- ワールド変更機能有効
         AUTO_CHANGE_ON_EXPENSIVE = true,  -- 高額時の自動ワールド変更
-        WORLDS = {               -- 巡回ワールドリスト（順番通り）
-            "Anima", "Asura", "Chocobo", "Hades", 
-            "Ixion", "Masamune", "Pandaemonium", "Titan"
+        WORLDS = {               -- 巡回ワールドリスト（日本全サーバー）
+            -- Elemental DC
+            "Aegis", "Atomos", "Carbuncle", "Garuda", "Gungnir", "Kujata", "Tonberry", "Typhon",
+            -- Gaia DC
+            "Alexander", "Bahamut", "Durandal", "Fenrir", "Ifrit", "Ridill", "Tiamat", "Ultima",
+            -- Mana DC
+            "Anima", "Asura", "Chocobo", "Hades", "Ixion", "Masamune", "Pandaemonium", "Titan",
+            -- Meteor DC
+            "Belias", "Mandragora", "Ramuh", "Shinryu", "Unicorn", "Valefor", "Yojimbo", "Zeromus"
         },
         CURRENT_INDEX = 1,       -- 現在のワールドインデックス
-        MAX_RETRIES = 8,         -- 最大試行回数（全ワールド1周）
+        MAX_RETRIES = 32,        -- 最大試行回数（全ワールド1周）
         CHANGE_TIMEOUT = 30      -- ワールド変更タイムアウト（秒）
     },
     
