@@ -121,7 +121,7 @@ local CONFIG = {
     -- 食事バフ自動再摂取設定
     AUTO_FOOD = {
         ENABLED = true,           -- 食事バフ自動再摂取機能有効
-        KEY_COMBINATION = "ctrl+shift+f9", -- 食事実行キーコンビネーション
+        KEY_COMBINATION = "SHIFT+CONTROL+F9", -- 食事実行キーコンビネーション
         CHECK_INTERVAL = 30,      -- バフチェック間隔（30秒）
         DISABLE_IN_COMBAT = true, -- 戦闘中は食事実行を無効化
         TIME_THRESHOLD = 600      -- 食事バフ残り時間の閾値（10分=600秒）
