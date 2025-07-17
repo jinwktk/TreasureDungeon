@@ -3216,11 +3216,33 @@ local function ExecuteCombatPhase()
         
         -- 3. 戦闘完了後の宝箱インタラクト（戦闘後の追加処理）
         if treasureChestInteracted then
-            LogInfo("戦闘完了後の宝箱再チェック...")
+            -- 非戦闘状態が3秒続いているかチェック
+            local nonCombatDuration = 3
+            local nonCombatStart = os.clock()
+            local combatCheckPassed = false
             
-            -- 戦闘後の回収ターゲット（ダンジョン状態に応じて調整）
-            local isInDungeon = IsInDuty()
-            local postCombatTargets = {"宝箱"}
+            while os.clock() - nonCombatStart < nonCombatDuration do
+                if IsInCombat() then
+                    -- 戦闘中なら最初からやり直し
+                    nonCombatStart = os.clock()
+                    LogDebug("戦闘中のため非戦闘状態待機をリセット")
+                end
+                Wait(0.5)
+            end
+            
+            -- 3秒間非戦闘状態が続いた場合のみ処理開始
+            if not IsInCombat() then
+                LogInfo("戦闘完了後の宝箱再チェック（非戦闘状態3秒確認済み）...")
+                combatCheckPassed = true
+            else
+                LogDebug("戦闘中のため宝箱処理をスキップ")
+                return -- 戦闘中なので処理を中断
+            end
+            
+            if combatCheckPassed then
+                -- 戦闘後の回収ターゲット（ダンジョン状態に応じて調整）
+                local isInDungeon = IsInDuty()
+                local postCombatTargets = {"宝箱"}
             
             if isInDungeon then
                 -- ダンジョン内では皮袋も対象に追加
@@ -3318,6 +3340,7 @@ local function ExecuteCombatPhase()
                 
                 ::next_target::
             end
+            end -- combatCheckPassed のif文を閉じる
         end
         
         -- 4. 転送魔紋をチェック
