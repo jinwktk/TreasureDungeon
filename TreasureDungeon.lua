@@ -133,13 +133,13 @@ local CONFIG = {
         AUTO_CHANGE_ON_EXPENSIVE = true,  -- 高額時の自動ワールド変更
         WORLDS = {               -- 巡回ワールドリスト（日本全サーバー）
             -- Elemental DC
-            "Aegis", "Atomos", "Carbuncle", "Garuda", "Gungnir", "Kujata", "Tonberry", "Typhon",
+            -- "Aegis", "Atomos", "Carbuncle", "Garuda", "Gungnir", "Kujata", "Tonberry", "Typhon",
             -- Gaia DC
-            "Alexander", "Bahamut", "Durandal", "Fenrir", "Ifrit", "Ridill", "Tiamat", "Ultima",
+            -- "Alexander", "Bahamut", "Durandal", "Fenrir", "Ifrit", "Ridill", "Tiamat", "Ultima",
             -- Mana DC
             "Anima", "Asura", "Chocobo", "Hades", "Ixion", "Masamune", "Pandaemonium", "Titan",
             -- Meteor DC
-            "Belias", "Mandragora", "Ramuh", "Shinryu", "Unicorn", "Valefor", "Yojimbo", "Zeromus"
+            -- "Belias", "Mandragora", "Ramuh", "Shinryu", "Unicorn", "Valefor", "Yojimbo", "Zeromus"
         },
         CURRENT_INDEX = 1,       -- 現在のワールドインデックス
         MAX_RETRIES = 32,        -- 最大試行回数（全ワールド1周）
@@ -509,6 +509,28 @@ local function TeleportToFlag()
     end, "CBTプラグインチェック失敗")
     
     if CONFIG.CBT.USE_TPFLAG and hasCBT then
+        -- フラグマーカー設定チェック
+        local isFlagSet = SafeExecute(function()
+            return Instances.Map.IsFlagMarkerSet
+        end, "フラグマーカー状態チェック失敗")
+        
+        if not isFlagSet then
+            LogInfo("フラグマーカー未設定 - /tmap で地図を開いてマーカーを設定")
+            yield("/tmap")
+            Wait(3)  -- 地図開始待機
+            
+            -- 地図が開いたら少し待ってからフラグ設定を再確認
+            Wait(2)
+            local isFlagSetAfterTmap = SafeExecute(function()
+                return Instances.Map.IsFlagMarkerSet
+            end, "地図開始後フラグマーカー状態チェック失敗")
+            
+            if not isFlagSetAfterTmap then
+                LogWarn("地図開始後もフラグマーカーが設定されていません - 手動設定が必要")
+                return false
+            end
+        end
+        
         LogInfo("CBT /tpflag コマンドでフラグ地点にテレポートします")
         yield("/tpflag")
         Wait(8)  -- テレポート完了待機
