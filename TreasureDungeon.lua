@@ -143,7 +143,7 @@ local CONFIG = {
         },
         CURRENT_INDEX = 1,       -- 現在のワールドインデックス
         MAX_RETRIES = 32,        -- 最大試行回数（全ワールド1周）
-        CHANGE_TIMEOUT = 30      -- ワールド変更タイムアウト（秒）
+        CHANGE_TIMEOUT = 300     -- ワールド変更タイムアウト（5分=300秒）
     },
     
     -- 座標別テレポート設定（フォールバック用）
