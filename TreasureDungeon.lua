@@ -321,38 +321,7 @@ local function IsInCombat()
     return success and result or false
 end
 
--- 食事実行関数
-local function ExecuteFood()
-    if not CONFIG.AUTO_FOOD.ENABLED then
-        return
-    end
-    
-    -- 戦闘中チェック（設定で無効化されている場合）
-    if CONFIG.AUTO_FOOD.DISABLE_IN_COMBAT and IsInCombat() then
-        LogDebug("戦闘中のため食事実行をスキップ")
-        return
-    end
-    
-    -- プレイヤー状態チェック
-    if not IsPlayerAvailable() then
-        LogDebug("プレイヤーが利用不可のため食事実行をスキップ")
-        return
-    end
-    
-    LogInfo("食事バフ切れ検出 - " .. CONFIG.AUTO_FOOD.KEY_COMBINATION .. " 実行")
-    
-    -- キーコンビネーション送信
-    local success = SafeExecute(function()
-        yield("/send " .. CONFIG.AUTO_FOOD.KEY_COMBINATION)
-    end, "食事キーコンビネーション送信エラー")
-    
-    if success then
-        LogInfo("食事実行完了 - 3秒待機")
-        Wait(3)  -- 食事処理の完了待機
-    else
-        LogError("食事実行失敗")
-    end
-end
+-- 食事実行関数（SafeExecute定義後に移動）
 
 -- 食事バフチェック・実行関数（メインループから呼び出し）
 local function CheckAndUseFoodItem()
@@ -479,6 +448,39 @@ local function SafeExecute(func, errorMessage, retryCount)
     end
     
     return false, "Max retries exceeded"
+end
+
+-- 食事実行関数
+local function ExecuteFood()
+    if not CONFIG.AUTO_FOOD.ENABLED then
+        return
+    end
+    
+    -- 戦闘中チェック（設定で無効化されている場合）
+    if CONFIG.AUTO_FOOD.DISABLE_IN_COMBAT and IsInCombat() then
+        LogDebug("戦闘中のため食事実行をスキップ")
+        return
+    end
+    
+    -- プレイヤー状態チェック
+    if not IsPlayerAvailable() then
+        LogDebug("プレイヤーが利用不可のため食事実行をスキップ")
+        return
+    end
+    
+    LogInfo("食事バフ切れ検出 - " .. CONFIG.AUTO_FOOD.KEY_COMBINATION .. " 実行")
+    
+    -- キーコンビネーション送信
+    local success = SafeExecute(function()
+        yield("/send " .. CONFIG.AUTO_FOOD.KEY_COMBINATION)
+    end, "食事キーコンビネーション送信エラー")
+    
+    if success then
+        LogInfo("食事実行完了 - 3秒待機")
+        Wait(3)  -- 食事処理の完了待機
+    else
+        LogError("食事実行失敗")
+    end
 end
 
 -- CBTプラグイン使用フラグテレポート関数
@@ -3967,8 +3969,9 @@ local phaseExecutors = {
 
 -- メインループ（エラーハンドラー付き）
 local function SafeMainLoop()
-    LogInfo("Treasure Hunt Automation v1.7.0 開始")
-    LogInfo("食事バフ自動再摂取機能搭載版: Ctrl+Shift+F9による食事バフ自動管理・戦闘中安全制御")
+    LogInfo("==================== TREASURE HUNT AUTOMATION v1.7.0 開始 ====================")
+    LogInfo("【食事バフ自動再摂取機能搭載版】SHIFT+CONTROL+F9による食事バフ自動管理・戦闘中安全制御")
+    LogInfo("==================== システム初期化中 ====================")
     
     -- スクリプト開始時に戦闘中の場合は自動戦闘を有効化し、戦闘終了まで待機
     if IsInCombat() then
