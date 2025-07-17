@@ -3758,6 +3758,21 @@ local function ExecuteDungeonPhase()
         return
     end
     
+    -- ダンジョン開始時に戦闘プラグインを有効化
+    if IsInCombat() then
+        EnableCombatPlugins()
+        local hasBMR, bmrName = HasCombatPlugin("bmr")
+        if hasBMR then
+            yield("/bmrai on")
+            LogInfo("ダンジョン開始時戦闘中: BMRAIを有効化 (プラグイン: " .. tostring(bmrName) .. ")")
+            Wait(0.5)
+        else
+            yield("/bmrai on")
+            LogInfo("ダンジョン開始時戦闘中: BMRAIを有効化 (フォールバック)")
+            Wait(0.5)
+        end
+    end
+    
     -- 食事効果チェック（ダンジョン開始時）
     CheckAndUseFoodItem()
     
@@ -3856,6 +3871,18 @@ local function ExecuteDungeonPhase()
                 -- 戦闘開始時に自動戦闘を確実に有効化
                 EnableCombatPlugins()
                 LogInfo("ダンジョン戦闘開始 - 自動戦闘プラグイン有効化完了")
+                
+                -- 追加: BMRAIを明示的に有効化
+                local hasBMR, bmrName = HasCombatPlugin("bmr")
+                if hasBMR then
+                    yield("/bmrai on")
+                    LogInfo("ダンジョン戦闘: BMRAIを明示的に有効化 (プラグイン: " .. tostring(bmrName) .. ")")
+                    Wait(0.5)
+                else
+                    yield("/bmrai on")
+                    LogInfo("ダンジョン戦闘: BMRAIを明示的に有効化 (フォールバック)")
+                    Wait(0.5)
+                end
             end
             
             -- 戦闘タイムアウトチェック
