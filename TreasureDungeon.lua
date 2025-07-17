@@ -480,9 +480,11 @@ local function ExecuteFood()
     
     LogInfo("食事バフ切れ検出 - " .. CONFIG.AUTO_FOOD.KEY_COMBINATION .. " 実行")
     
-    -- キーコンビネーション送信
+    -- キーコンビネーション送信（hold/release方式）
     local success = SafeExecute(function()
-        yield("/send " .. CONFIG.AUTO_FOOD.KEY_COMBINATION)
+        yield("/hold " .. CONFIG.AUTO_FOOD.KEY_COMBINATION)
+        Wait(0.1)  -- 短時間保持
+        yield("/release " .. CONFIG.AUTO_FOOD.KEY_COMBINATION)
     end, "食事キーコンビネーション送信エラー")
     
     if success then
