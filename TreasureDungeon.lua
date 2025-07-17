@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v1.5.8
+                      Treasure Hunt Automation v1.7.0
 ================================================================================
 FFXIV トレジャーハント完全自動化スクリプト
 
@@ -21,18 +21,20 @@ FFXIV トレジャーハント完全自動化スクリプト
   - VT (VoidToolkit) - Optional
 
 Author: Claude + jinwktk
-Date: 2025-07-15
+Date: 2025-07-16
 
 変更履歴:
-v1.5.8 (2025-07-15):
-- AutoDuty定期修理機能追加: /ad repairコマンドによる5分間隔での自動修理対応
-- CONFIG.AUTO_REPAIR設定セクション追加（ENABLED/INTERVAL/COMMAND）
-- PerformRepair()関数実装: 前回実行時刻管理による重複防止
-- メインループ内で10イテレーション毎に自動修理実行
+v1.7.0 (2025-07-17):
+- 食事バフ自動再摂取機能追加: 食事バフ切れ時にCtrl+Shift+F9を自動実行
+- CONFIG.AUTO_FOOD設定セクション追加（ENABLED/KEY_COMBINATION/CHECK_INTERVAL/DISABLE_IN_COMBAT）
+- HasFoodBuff()関数実装: Player.HasStatus(48)とGetCharacterCondition(49)によるバフ確認
+- IsInCombat()関数実装: 戦闘中は食事実行をスキップする安全制御
+- CheckAndUseFoodItem()関数: 30秒間隔での食事バフチェック・自動実行システム
 
-v1.5.7 (2025-07-14):
-- MetaData削除対応版: シンプルな直接CONFIG定義方式・構文エラー修正完了
-- 価格制限機能統合: CONFIG.PRICE_LIMITS設定による柔軟な価格制御
+v1.5.9 (2025-07-16):
+- BMR制御改善: 宝箱インタラクト前にBMRを確実にオフにする処理を強化
+- 非戦闘時BMR制御: 地図購入・移動・完了フェーズでBMRを自動的にオフ
+- HasCombatPlugin関数使用: より確実なBMRプラグイン検出とフォールバック処理
 --]]
 
 -- ================================================================================
@@ -116,6 +118,14 @@ local CONFIG = {
         COMMAND = "/ad repair"   -- AutoDutyの修理コマンド
     },
     
+    -- 食事バフ自動再摂取設定
+    AUTO_FOOD = {
+        ENABLED = true,           -- 食事バフ自動再摂取機能有効
+        KEY_COMBINATION = "ctrl+shift+f9", -- 食事実行キーコンビネーション
+        CHECK_INTERVAL = 30,      -- バフチェック間隔（30秒）
+        DISABLE_IN_COMBAT = true  -- 戦闘中は食事実行を無効化
+    },
+    
     -- Lifestreamワールド変更設定
     LIFESTREAM = {
         ENABLED = true,           -- ワールド変更機能有効
@@ -158,6 +168,7 @@ local combatPluginsEnabled = false  -- 戦闘プラグイン有効化状態フ�
 local flagCoordinatesLogged = false  -- フラッグ座標ログ重複防止フラグ
 local yCoordinateWarningLogged = false  -- Y座標警告ログ重複防止フラグ
 local lastRepairTime = 0  -- 最後の修理実行時刻
+local lastFoodCheckTime = 0  -- 最後の食事バフチェック時刻
 
 -- フェーズ状態管理
 local movementStarted = false
@@ -207,6 +218,8 @@ local function HandleCoordinateTeleport(x, z, y_corrected)
 end
 
 -- 修理関数
+-- 【使用箇所】宝箱インタラクト前（CheckForTreasureChest関数内）でのみ呼び出し
+-- MOVEMENTフェーズやメインループでは呼び出さない
 local function PerformRepair()
     if not CONFIG.AUTO_REPAIR.ENABLED then
         return
@@ -219,7 +232,107 @@ local function PerformRepair()
         LogInfo("定期修理実行: " .. CONFIG.AUTO_REPAIR.COMMAND)
         yield(CONFIG.AUTO_REPAIR.COMMAND)
         lastRepairTime = currentTime
-        Wait(2)  -- 修理処理の完了待機
+        LogInfo("修理実行中 - 5秒待機")
+        Wait(5)  -- 修理処理の完了待機を5秒に延長
+    end
+end
+
+-- ================================================================================
+-- 食事バフ管理システム
+-- ================================================================================
+
+-- 食事バフ存在チェック関数
+local function HasFoodBuff()
+    local success, result = SafeExecute(function()
+        -- SND v12.0.0+: Player.HasStatus APIを使用して食事バフを確認
+        if Player and Player.HasStatus then
+            -- 食事バフのStatus ID: 48（Well Fed）
+            return Player.HasStatus(48)
+        -- フォールバック: GetCharacterCondition使用
+        elseif GetCharacterCondition then
+            -- CharacterCondition 49 = Well Fed
+            return GetCharacterCondition(49)
+        else
+            LogDebug("食事バフ確認API利用不可 - スキップ")
+            return true  -- API利用不可時はバフありと仮定
+        end
+    end, "食事バフ確認エラー")
+    
+    return success and result or true
+end
+
+-- 戦闘状態チェック関数
+local function IsInCombat()
+    local success, result = SafeExecute(function()
+        -- SND v12.0.0+: Player.InCombat プロパティ
+        if Player and Player.InCombat ~= nil then
+            return Player.InCombat
+        -- フォールバック: GetCharacterCondition使用
+        elseif GetCharacterCondition then
+            -- CharacterCondition 26 = InCombat
+            return GetCharacterCondition(26)
+        else
+            return false  -- 不明時は非戦闘として扱う
+        end
+    end, "戦闘状態確認エラー")
+    
+    return success and result or false
+end
+
+-- 食事実行関数
+local function ExecuteFood()
+    if not CONFIG.AUTO_FOOD.ENABLED then
+        return
+    end
+    
+    -- 戦闘中チェック（設定で無効化されている場合）
+    if CONFIG.AUTO_FOOD.DISABLE_IN_COMBAT and IsInCombat() then
+        LogDebug("戦闘中のため食事実行をスキップ")
+        return
+    end
+    
+    -- プレイヤー状態チェック
+    if not IsPlayerAvailable() then
+        LogDebug("プレイヤーが利用不可のため食事実行をスキップ")
+        return
+    end
+    
+    LogInfo("食事バフ切れ検出 - " .. CONFIG.AUTO_FOOD.KEY_COMBINATION .. " 実行")
+    
+    -- キーコンビネーション送信
+    local success = SafeExecute(function()
+        yield("/send " .. CONFIG.AUTO_FOOD.KEY_COMBINATION)
+    end, "食事キーコンビネーション送信エラー")
+    
+    if success then
+        LogInfo("食事実行完了 - 3秒待機")
+        Wait(3)  -- 食事処理の完了待機
+    else
+        LogError("食事実行失敗")
+    end
+end
+
+-- 食事バフチェック・実行関数（メインループから呼び出し）
+local function CheckAndUseFoodItem()
+    if not CONFIG.AUTO_FOOD.ENABLED then
+        return
+    end
+    
+    local currentTime = os.clock()
+    
+    -- チェック間隔制御
+    if currentTime - lastFoodCheckTime < CONFIG.AUTO_FOOD.CHECK_INTERVAL then
+        return
+    end
+    
+    lastFoodCheckTime = currentTime
+    
+    -- 食事バフの存在確認
+    if not HasFoodBuff() then
+        LogInfo("食事バフが切れています")
+        ExecuteFood()
+    else
+        LogDebug("食事バフ確認: アクティブ")
     end
 end
 
@@ -1740,7 +1853,7 @@ end
 
 -- 初期化フェーズ
 local function ExecuteInitPhase()
-    LogInfo("トレジャーハント自動化 v1.5.5 を開始します")
+    LogInfo("トレジャーハント自動化 v1.6.0 を開始します")
     LogInfo("設定: " .. CONFIG.MAP_TYPE .. " 地図")
     
     if not CheckPrerequisites() then
@@ -1766,6 +1879,14 @@ end
 
 -- 地図購入フェーズ
 local function ExecuteMapPurchasePhase()
+    -- 非戦闘時はBMRをオフにする（地図購入中は戦闘しないため）
+    local hasBMR, bmrName = HasCombatPlugin("bmr")
+    if hasBMR or true then  -- 常に実行（プラグイン検出失敗時も対応）
+        yield("/bmrai off")
+        LogInfo("地図購入フェーズ開始 - BMRai無効化 (非戦闘時)")
+        Wait(0.5)
+    end
+    
     -- 食事効果チェック（フェーズ開始時）
     CheckAndUseFoodItem()
     
@@ -2077,6 +2198,14 @@ local function ExecuteMovementPhase()
         -- 新しい移動開始時にログフラグをリセット
         flagCoordinatesLogged = false
         yCoordinateWarningLogged = false
+        
+        -- 非戦闘時はBMRをオフにする
+        local hasBMR, bmrName = HasCombatPlugin("bmr")
+        if hasBMR or true then  -- 常に実行（プラグイン検出失敗時も対応）
+            yield("/bmrai off")
+            LogInfo("移動フェーズ開始 - BMRai無効化 (非戦闘時)")
+            Wait(0.5)
+        end
         
         -- 食事効果チェック（移動開始時）
         CheckAndUseFoodItem()
@@ -2775,7 +2904,13 @@ local function CheckForTreasureChest()
     end
     
     if HasTarget() then
-        LogInfo("宝箱発見 - 移動してインタラクト開始")
+        LogInfo("宝箱発見 - インタラクト前に修理実行")
+        
+        -- 【修理実行箇所】宝箱インタラクト前にのみ修理を実行
+        -- この箇所以外では修理を実行しない
+        PerformRepair()
+        
+        LogInfo("修理完了 - 宝箱への移動とインタラクト開始")
         
         -- 現在の距離をチェック
         local currentDistance = GetDistanceToTarget()
@@ -2920,9 +3055,16 @@ local function CheckForTreasureChest()
         end
         
         -- インタラクト前にBMRaiを無効化（自動移動阻害防止）
-        if HasPlugin("BossMod") or HasPlugin("BossModReborn") then
+        -- HasCombatPlugin関数を使用して確実に検出
+        local hasBMR, bmrName = HasCombatPlugin("bmr")
+        if hasBMR then
             yield("/bmrai off")
-            LogInfo("宝箱インタラクト前にBMRai無効化")
+            LogInfo("宝箱インタラクト前にBMRai無効化 (プラグイン: " .. tostring(bmrName) .. ")")
+            Wait(0.5)
+        else
+            -- フォールバック: 直接コマンドを試行
+            yield("/bmrai off")
+            LogDebug("BMRプラグイン未検出 - 念のためBMRaiオフコマンド実行")
             Wait(0.5)
         end
         
@@ -3098,6 +3240,18 @@ local function ExecuteCombatPhase()
                         end
                     end
                     
+                    -- インタラクト前にBMRaiを無効化
+                    local hasBMR, bmrName = HasCombatPlugin("bmr")
+                    if hasBMR then
+                        yield("/bmrai off")
+                        LogInfo("戦闘後インタラクト前にBMRai無効化 (プラグイン: " .. tostring(bmrName) .. ")")
+                        Wait(0.5)
+                    else
+                        yield("/bmrai off")
+                        LogDebug("BMRプラグイン未検出 - 念のため戦闘後インタラクトBMRaiオフコマンド実行")
+                        Wait(0.5)
+                    end
+                    
                     -- インタラクト前にターゲットを確実に指定
                     LogInfo("戦闘後の" .. targetName .. "を再ターゲットしてインタラクト実行")
                     yield("/target " .. targetName)
@@ -3264,6 +3418,18 @@ local function CheckForTreasures()
                 local finalDistance = GetDistanceToTarget()
             end
             
+            -- インタラクト前にBMRaiを無効化
+            local hasBMR, bmrName = HasCombatPlugin("bmr")
+            if hasBMR then
+                yield("/bmrai off")
+                LogInfo("ダンジョン宝物インタラクト前にBMRai無効化 (プラグイン: " .. tostring(bmrName) .. ")")
+                Wait(0.5)
+            else
+                yield("/bmrai off")
+                LogDebug("BMRプラグイン未検出 - 念のためダンジョン宝物インタラクトBMRaiオフコマンド実行")
+                Wait(0.5)
+            end
+            
             table.insert(treasuresFound, actualTargetName)
             LogInfo(actualTargetName .. "とインタラクト実行")
             yield("/interact")
@@ -3371,6 +3537,7 @@ end
 
 -- 優先順位ベースターゲット・インタラクトシステム
 -- 皮袋＞宝箱＞宝物庫の扉/召喚魔法陣＞脱出地点の順
+-- 戻り値: インタラクト成功, 階層進行フラグ
 local function CheckAndInteractPriorityTargets(currentFloor, maxFloors)
     LogDebug("優先順位ベースターゲット実行 (階層: " .. currentFloor .. "/" .. maxFloors .. ")")
     
@@ -3470,10 +3637,36 @@ local function CheckAndInteractPriorityTargets(currentFloor, maxFloors)
                         LogInfo("既に範囲内です (距離: " .. string.format("%.2f", distance) .. "yalm)")
                     end
                     
+                    -- インタラクト前にBMRaiを無効化
+                    local hasBMR, bmrName = HasCombatPlugin("bmr")
+                    if hasBMR then
+                        yield("/bmrai off")
+                        LogInfo("ダンジョン内ターゲットインタラクト前にBMRai無効化 (プラグイン: " .. tostring(bmrName) .. ")")
+                        Wait(0.5)
+                    else
+                        yield("/bmrai off")
+                        LogDebug("BMRプラグイン未検出 - 念のためダンジョン内ターゲットインタラクトBMRaiオフコマンド実行")
+                        Wait(0.5)
+                    end
+                    
                     -- インタラクト実行
                     LogInfo(actualTargetName .. "とインタラクト実行")
                     yield("/interact")
                     Wait(2)
+                    
+                    -- 階層進行検出（宝物庫の扉/召喚魔法陣のみ）
+                    local floorProgressDetected = false
+                    if priorityIndex == 3 then  -- 宝物庫の扉/召喚魔法陣グループ
+                        -- 階層進行判定のため少し待機
+                        LogDebug("階層進行検出のため追加待機中...")
+                        Wait(3)
+                        
+                        -- プレイヤーがまだダンジョン内にいる場合は階層進行とみなす
+                        if IsInDuty() and not IsInCombat() then
+                            floorProgressDetected = true
+                            LogInfo("階層進行検出: " .. actualTargetName .. "により次の階層へ移動")
+                        end
+                    end
                     
                     -- インタラクト後の戦闘チェック
                     local combatCheckTime = os.clock()
@@ -3493,8 +3686,8 @@ local function CheckAndInteractPriorityTargets(currentFloor, maxFloors)
                     -- ターゲット解除
                     yield("/targetenemy")
                     
-                    -- インタラクト成功を返す
-                    return true
+                    -- インタラクト成功と階層進行フラグを返す
+                    return true, floorProgressDetected
                 end
             end
             
@@ -3502,7 +3695,7 @@ local function CheckAndInteractPriorityTargets(currentFloor, maxFloors)
         end
     end
     
-    return false
+    return false, false  -- インタラクト失敗, 階層進行なし
 end
 
 local function ExecuteDungeonPhase()
@@ -3642,7 +3835,21 @@ local function ExecuteDungeonPhase()
             end
             
             -- 優先順位に基づく統一ターゲットシステム
-            local interacted = CheckAndInteractPriorityTargets(currentFloor, maxFloors)
+            local interacted, floorProgressed = CheckAndInteractPriorityTargets(currentFloor, maxFloors)
+            
+            -- 階層進行チェック
+            if floorProgressed then
+                currentFloor = currentFloor + 1
+                LogInfo("階層進行: " .. (currentFloor - 1) .. "/" .. maxFloors .. 
+                       " → " .. currentFloor .. "/" .. maxFloors)
+                
+                -- 最終層到達チェック
+                if currentFloor > maxFloors then
+                    LogInfo("最終層を超過 - ダンジョン完了とみなします")
+                    ChangePhase("COMPLETE", "全階層完了")
+                    return
+                end
+            end
             
             if not interacted then
                 -- 何もターゲットできない場合は前進探索
@@ -3677,6 +3884,10 @@ end
 -- 完了フェーズ
 local function ExecuteCompletePhase()
     LogInfo("トレジャーハント完了！")
+    
+    -- 完了時も戦闘プラグインを無効化
+    DisableCombatPlugins()
+    LogInfo("完了フェーズ - 自動戦闘プラグイン無効化")
     
     -- 次の地図があるかチェック
     local mapConfig = CONFIG.MAPS[CONFIG.MAP_TYPE]
@@ -3720,8 +3931,8 @@ local phaseExecutors = {
 
 -- メインループ（エラーハンドラー付き）
 local function SafeMainLoop()
-    LogInfo("Treasure Hunt Automation v1.5.8 開始")
-    LogInfo("AutoDuty定期修理機能追加版: /ad repairコマンドによる5分間隔での自動修理対応")
+    LogInfo("Treasure Hunt Automation v1.7.0 開始")
+    LogInfo("食事バフ自動再摂取機能搭載版: Ctrl+Shift+F9による食事バフ自動管理・戦闘中安全制御")
     
     -- スクリプト開始時に戦闘中の場合は自動戦闘を有効化し、戦闘終了まで待機
     if IsInCombat() then
@@ -3752,14 +3963,15 @@ local function SafeMainLoop()
     while not stopRequested and iteration < maxIterations do
         iteration = iteration + 1
         
-        -- 定期的な食事効果・インベントリ・マテリア精製・修理チェック（10イテレーションごと）
+        -- 定期的な食事効果・インベントリ・マテリア精製チェック（10イテレーションごと）
         if iteration % 10 == 0 then
             CheckAndUseFoodItem()
             if not CheckAndManageInventory() then
                 break  -- インベントリ満杯の場合はループを終了
             end
             CheckAndExtractMateria()
-            PerformRepair()  -- AutoDutyの修理機能を呼び出し
+            -- 【重要】修理は宝箱インタラクト前（CheckForTreasureChest関数内）でのみ実行
+            -- MOVEMENTフェーズや他のフェーズでは修理を一切実行しない
         end
         
         -- タイムアウトチェック
