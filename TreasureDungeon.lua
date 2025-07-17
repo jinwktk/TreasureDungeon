@@ -1474,11 +1474,8 @@ local function CheckAndUseFoodItem()
     local remainingMinutes = math.floor(remainingTime / 60)
     
     if remainingTime <= 0 then
-        LogInfo("食事効果なし - アイテム機能一時無効のためスキップ")
-        --SafeExecute(function()
-        --    yield("/item \"高級マテ茶クッキー\" hq")
-        --end, "Failed to use food item")
-        --Wait(3)
+        LogInfo("食事効果なし - " .. CONFIG.AUTO_FOOD.KEY_COMBINATION .. " で食事実行")
+        ExecuteFood()
     elseif remainingTime < 300 then  -- 5分未満の場合
         LogInfo("食事効果残り時間: " .. remainingMinutes .. "分 - アイテム機能一時無効のためスキップ")
         --SafeExecute(function()
