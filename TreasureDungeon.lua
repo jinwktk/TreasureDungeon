@@ -462,8 +462,18 @@ local function ExecuteFood()
         return
     end
     
-    -- プレイヤー状態チェック
-    if not IsPlayerAvailable() then
+    -- プレイヤー状態チェック（簡易版）
+    local playerAvailable = false
+    local success, result = pcall(function()
+        if Player and Player.Available ~= nil then
+            return Player.Available and not (Player.IsBusy or false)
+        else
+            return true  -- API利用不可時は利用可能と仮定
+        end
+    end)
+    playerAvailable = success and result or true
+    
+    if not playerAvailable then
         LogDebug("プレイヤーが利用不可のため食事実行をスキップ")
         return
     end
