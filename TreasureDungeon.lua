@@ -67,13 +67,13 @@ local CONFIG = {
     -- 価格制限設定
     PRICE_LIMITS = {
         ENABLED = true,           -- 価格制限機能有効
-        MAX_PRICE = 30000,        -- 最大購入価格（ギル）
+        MAX_PRICE = 20000,        -- 最大購入価格（ギル）
         SKIP_EXPENSIVE = true     -- 高額時は購入をスキップ
     },
     
     -- タイムアウト設定（秒）
     TIMEOUTS = {
-        MOVEMENT = 300,     -- 移動タイムアウト（5分）
+        MOVEMENT = 600,     -- 移動タイムアウト（10分） - より長時間の移動に対応
         COMBAT = 1800,      -- 戦闘タイムアウト（30分） - 長時間戦闘対応
         INTERACTION = 10,   -- インタラクションタイムアウト（10秒）
         TELEPORT = 15,      -- テレポートタイムアウト（15秒）
@@ -133,13 +133,13 @@ local CONFIG = {
         AUTO_CHANGE_ON_EXPENSIVE = true,  -- 高額時の自動ワールド変更
         WORLDS = {               -- 巡回ワールドリスト（日本全サーバー）
             -- Elemental DC
-            -- "Aegis", "Atomos", "Carbuncle", "Garuda", "Gungnir", "Kujata", "Tonberry", "Typhon",
+            "Aegis", "Atomos", "Carbuncle", "Garuda", "Gungnir", "Kujata", "Tonberry", "Typhon",
             -- Gaia DC
-            -- "Alexander", "Bahamut", "Durandal", "Fenrir", "Ifrit", "Ridill", "Tiamat", "Ultima",
+            "Alexander", "Bahamut", "Durandal", "Fenrir", "Ifrit", "Ridill", "Tiamat", "Ultima",
             -- Mana DC
             "Anima", "Asura", "Chocobo", "Hades", "Ixion", "Masamune", "Pandaemonium", "Titan",
             -- Meteor DC
-            -- "Belias", "Mandragora", "Ramuh", "Shinryu", "Unicorn", "Valefor", "Yojimbo", "Zeromus"
+            "Belias", "Mandragora", "Ramuh", "Shinryu", "Unicorn", "Valefor", "Yojimbo", "Zeromus"
         },
         CURRENT_INDEX = 1,       -- 現在のワールドインデックス
         MAX_RETRIES = 32,        -- 最大試行回数（全ワールド1周）
@@ -167,7 +167,7 @@ local currentPhase = "INIT"
 local phaseStartTime = 0
 local stopRequested = false
 local iteration = 0
-local maxIterations = 1000
+local maxIterations = 3000  -- より長時間の処理に対応（1000→3000）
 local combatWarningTime = nil  -- 戦闘プラグイン未検出警告のタイムスタンプ
 local domaGuardRecentlyInteracted = false  -- ドマ反乱軍の門兵インタラクト無限ループ防止フラグ
 local combatPluginDebugLogged = false  -- インストール済みプラグイン一覧ログ出力フラグ
