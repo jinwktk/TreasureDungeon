@@ -282,6 +282,13 @@ TreasureDungeonLegacy/
 
 **結論**: v1.0.0により、実用的で安定したFFXIVトレジャーハント自動化システムが完成。
 
+### v1.7.0での対応例（2025-07-17）
+- **食事バフ自動再摂取機能実装**: ユーザー要求「48が食事ステータス・10分切ってたら食べるようにしてほしい・Shift Ctrl F9で食べれる」への対応
+- **GetStatusTimeRemaining()関数追加**: GitHubコードを参考にPlayer.StatusListから正確な残り時間を秒単位で取得
+- **ShouldUseFoodBuff()関数実装**: 10分（600秒）閾値での詳細な残り時間チェック・分秒表示ログ
+- **CONFIG.AUTO_FOOD.TIME_THRESHOLD追加**: 食事実行タイミングの閾値設定（デフォルト10分）
+- **既存機能改善**: HasFoodBuff()から ShouldUseFoodBuff()への移行で正確なタイミング制御実現
+
 ### v1.0.5での対応例（2025-07-14）
 - **戦闘中冗長ログ削減完了**: combatPluginsEnabledフラグによる重複検出ログ抑制
 - **宝箱インタラクト改善**: 移動前マウント自動召喚システム実装

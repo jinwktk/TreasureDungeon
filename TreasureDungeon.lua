@@ -25,11 +25,11 @@ Date: 2025-07-16
 
 変更履歴:
 v1.7.0 (2025-07-17):
-- 食事バフ自動再摂取機能追加: 食事バフ切れ時にCtrl+Shift+F9を自動実行
-- CONFIG.AUTO_FOOD設定セクション追加（ENABLED/KEY_COMBINATION/CHECK_INTERVAL/DISABLE_IN_COMBAT）
-- HasFoodBuff()関数実装: Player.HasStatus(48)とGetCharacterCondition(49)によるバフ確認
-- IsInCombat()関数実装: 戦闘中は食事実行をスキップする安全制御
-- CheckAndUseFoodItem()関数: 30秒間隔での食事バフチェック・自動実行システム
+- 食事バフ自動再摂取機能実装: 残り時間10分以下でCtrl+Shift+F9を自動実行
+- GetStatusTimeRemaining()関数追加: Player.StatusListから正確な残り時間を取得
+- ShouldUseFoodBuff()関数実装: 10分閾値での詳細な残り時間チェック
+- CONFIG.AUTO_FOOD.TIME_THRESHOLD追加: 食事実行タイミングの閾値設定（10分=600秒）
+- 残り時間詳細ログ機能: 分秒表示での正確な残り時間情報
 
 v1.5.9 (2025-07-16):
 - BMR制御改善: 宝箱インタラクト前にBMRを確実にオフにする処理を強化
@@ -123,7 +123,8 @@ local CONFIG = {
         ENABLED = true,           -- 食事バフ自動再摂取機能有効
         KEY_COMBINATION = "ctrl+shift+f9", -- 食事実行キーコンビネーション
         CHECK_INTERVAL = 30,      -- バフチェック間隔（30秒）
-        DISABLE_IN_COMBAT = true  -- 戦闘中は食事実行を無効化
+        DISABLE_IN_COMBAT = true, -- 戦闘中は食事実行を無効化
+        TIME_THRESHOLD = 600      -- 食事バフ残り時間の閾値（10分=600秒）
     },
     
     -- Lifestreamワールド変更設定
@@ -241,6 +242,24 @@ end
 -- 食事バフ管理システム
 -- ================================================================================
 
+-- ステータス残り時間取得関数（GitHubコード参考）
+local function GetStatusTimeRemaining(statusID)
+    local success, result = SafeExecute(function()
+        if Player and Player.StatusList then
+            local statuses = Player.StatusList
+            for i = 0, statuses.Length - 1 do
+                local status = statuses[i]
+                if status and status.StatusId == statusID then
+                    return status.RemainingTime or 0
+                end
+            end
+        end
+        return 0
+    end, "ステータス残り時間取得エラー")
+    
+    return success and result or 0
+end
+
 -- 食事バフ存在チェック関数
 local function HasFoodBuff()
     local success, result = SafeExecute(function()
@@ -259,6 +278,29 @@ local function HasFoodBuff()
     end, "食事バフ確認エラー")
     
     return success and result or true
+end
+
+-- 食事バフ残り時間チェック関数（10分以下で実行）
+local function ShouldUseFoodBuff()
+    -- 食事バフの残り時間を取得（秒）
+    local remainingTime = GetStatusTimeRemaining(48)
+    
+    -- 残り時間が設定閾値以下または0（バフなし）の場合は食事実行
+    if remainingTime <= CONFIG.AUTO_FOOD.TIME_THRESHOLD then
+        if remainingTime > 0 then
+            local remainingMinutes = math.floor(remainingTime / 60)
+            LogInfo(string.format("食事バフ残り時間: %d分%d秒 - 閾値以下のため食事実行", 
+                remainingMinutes, remainingTime % 60))
+        else
+            LogInfo("食事バフなし - 食事実行")
+        end
+        return true
+    else
+        local remainingMinutes = math.floor(remainingTime / 60)
+        LogDebug(string.format("食事バフ残り時間: %d分%d秒 - 十分", 
+            remainingMinutes, remainingTime % 60))
+        return false
+    end
 end
 
 -- 戦闘状態チェック関数
@@ -327,12 +369,9 @@ local function CheckAndUseFoodItem()
     
     lastFoodCheckTime = currentTime
     
-    -- 食事バフの存在確認
-    if not HasFoodBuff() then
-        LogInfo("食事バフが切れています")
+    -- 食事バフの残り時間チェック（10分以下で実行）
+    if ShouldUseFoodBuff() then
         ExecuteFood()
-    else
-        LogDebug("食事バフ確認: アクティブ")
     end
 end
 
