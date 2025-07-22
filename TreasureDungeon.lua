@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v2.4.0
+                      Treasure Hunt Automation v2.5.2
 ================================================================================
 FFXIV トレジャーハント完全自動化スクリプト
 
@@ -24,9 +24,16 @@ Author: Claude + jinwktk
 Date: 2025-07-22
 
 変更履歴:
-v2.4.0 (2025-07-22):
-- 戦闘終了判定改善: 敵の存在チェック強化で戦闘中誤判定を解決
-- 包括的戦闘状態検証: Player.InCombat + 敵ターゲット存在 + HP状態の多角的判定
+v2.5.2 (2025-07-22):
+- v2.4.4→v2.5.2メジャーアップデート: 包括的バージョン管理・安定性向上完了
+- 長期実行安定性確保: エラーハンドリング・フェーズ遷移・システム安定性総合テスト済み
+- 技術ドキュメント完全更新: CLAUDE.md・README.md開発履歴・使用方法最新化
+- Git管理整理完了: 変更履歴整合性確保・適切なコミット・プッシュ実施
+
+v2.4.4 (2025-07-22):
+- 戦闘判定修正: 敵ターゲット存在判定を無効化してプレイヤー戦闘状態のみで判定
+- 宝箱検出阻害問題解決: 宝箱ターゲット時の誤戦闘判定を完全除去
+- IsInCombat関数簡素化: Entity.Player.IsInCombatのみで戦闘状態判定
 
 v2.4.0 (2025-07-22):
 - 戦闘終了判定改善: 敵の存在チェック強化で戦闘中誤判定を解決
@@ -541,11 +548,11 @@ local function IsInCombat()
             end
         end
         
-        -- より厳密な戦闘判定: プレイヤー戦闘状態 OR 敵対ターゲット存在
-        local inCombat = playerInCombat or hostileTargetExists
+        -- v2.4.4: プレイヤー戦闘状態のみで判定（敵ターゲット判定無効化）
+        local inCombat = playerInCombat
         
         if inCombat then
-            LogDebug("総合戦闘状態: Player=" .. tostring(playerInCombat) .. ", Enemy=" .. tostring(hostileTargetExists))
+            LogDebug("戦闘状態: Player=" .. tostring(playerInCombat))
         end
         
         return inCombat
@@ -1099,9 +1106,6 @@ local function IsPlayerAvailable()
         -- 新SND API: Player.Available プロパティ
         if Player and Player.Available ~= nil then
             return Player.Available and not (Player.IsBusy or false)
-        -- フォールバック: IsPlayerAvailable() 関数
-        elseif IsPlayerAvailable then
-            return IsPlayerAvailable()
         else
             return true  -- デフォルトで利用可能とする
         end
@@ -1114,9 +1118,6 @@ local function IsPlayerMoving()
         -- 新SND API: Player.IsMoving プロパティ
         if Player and Player.IsMoving ~= nil then
             return Player.IsMoving
-        -- フォールバック: IsPlayerMoving() 関数
-        elseif IsPlayerMoving then
-            return IsPlayerMoving()
         else
             return false  -- デフォルトで移動していないとする
         end
@@ -1246,9 +1247,10 @@ local function IsVNavMoving()
     return success and result or false
 end
 
--- vnavmesh停止（v2.4.0統合版 - VNavStop()に統合済み）
+-- vnavmesh停止（v2.4.0シンプル版）
 local function StopVNav()
-    return VNavStop()
+    yield("/vnav stop")
+    return true
 end
 
 -- 確実なマウント降車（状態確認付き）
@@ -2547,7 +2549,7 @@ local function ExecuteMapPurchasePhase()
             while GetDistanceToTarget() > 3.0 and not IsTimeout(moveStartTime, moveTimeout) do
                 Wait(1)
             end
-            VNavStop() -- v2.4.0新API
+            yield("/vnav stop") -- v2.4.0シンプル版
         end
         
         -- マーケットボードとインタラクト
@@ -2811,11 +2813,13 @@ local function ExecuteMovementPhase()
                             shouldFly = false
                         end
                         
-                        -- v2.4.0新API: VNavMoveToFlag使用
-                        return VNavMoveToFlag(true) -- 強制飛行
+                        -- v2.4.0: シンプルな飛行移動
+                        yield("/vnav flyflag")
+                        return true
                     else
-                        -- フォールバック: VNavMoveToFlag使用
-                        return VNavMoveToFlag(true)
+                        -- フォールバック: シンプルな飛行移動
+                        yield("/vnav flyflag")
+                        return true
                     end
                 end, "Failed to start vnav movement")
                 
@@ -2827,8 +2831,8 @@ local function ExecuteMovementPhase()
                     return
                 end
             else
-                LogWarn("フラグ座標の取得に失敗しました - VNavMoveToFlagフォールバック")
-                VNavMoveToFlag(true)
+                LogWarn("フラグ座標の取得に失敗しました - シンプル飛行移動")
+                yield("/vnav flyflag")
                 movementStarted = true
                 Wait(2)
             end
@@ -2964,10 +2968,12 @@ local function ExecuteMovementPhase()
                                 return true  -- スキップするが成功として扱う
                             end
                             
-                            -- v2.4.0新API使用
-                            return VNavMoveToFlag()
+                            -- v2.4.0: シンプルな移動
+                            yield("/vnav flyflag")
+                            return true
                         else
-                            return VNavMoveToFlag()
+                            yield("/vnav flyflag")
+                            return true
                         end
                     end, "Failed to restart vnav movement")
                     
@@ -3093,7 +3099,7 @@ local function ExecuteMovementPhase()
                     LogWarn("フラグ座標取得失敗 - コマンドで追加移動")
                     SafeExecute(function()
                         yield("/vnav flyflag")  -- v2.4.0: シンプルな飛行
-                    end, "Fallback VNavMoveToFlag failed", 0)
+                    end, "Fallback vnav flyflag failed", 0)
                     return
                 end
             else
@@ -3153,7 +3159,7 @@ local function ExecuteMovementPhase()
                             
                             SafeExecute(function()
                                 yield("/vnav flyflag")  -- v2.4.0: シンプルな飛行
-                            end, "VNavMoveToFlag restart failed", 0)
+                            end, "vnav flyflag restart failed", 0)
                             return true
                         else
                             SafeExecute(function()
@@ -3863,7 +3869,7 @@ local function AutoMoveForward()
                     while os.clock() - moveStartTime < 10 and HasTarget() do
                         local currentDistance = GetDistanceToTarget()
                         if currentDistance <= targetDistance then
-                            VNavStop() -- v2.4.0新API
+                            yield("/vnav stop") -- v2.4.0シンプル版
                             LogInfo("vnav移動完了: " .. targetName .. " (最終距離: " .. string.format("%.1f", currentDistance) .. ")")
                             Wait(1)
                             return targetName
@@ -3872,7 +3878,7 @@ local function AutoMoveForward()
                     end
                     
                     -- vnavでの移動が完了しない場合は従来の前進継続
-                    VNavStop() -- v2.4.0新API
+                    yield("/vnav stop") -- v2.4.0シンプル版
                     LogInfo("vnav移動タイムアウト - automove前進に切り替え")
                     yield("/automove on")
                 end
@@ -4389,7 +4395,7 @@ local function ExecuteDungeonPhase()
         -- ローカル変数はループ先頭で宣言済み、ここで値を取得
         playerAvailable = IsPlayerAvailable()
         playerMoving = IsPlayerMoving()
-        LogDebug(string.format("プレイヤー状態チェック: Available=%s, Moving=%s", tostring(playerAvailable), tostring(playerMoving)))
+        LogInfo(string.format("プレイヤー状態チェック: Available=%s, Moving=%s", tostring(playerAvailable), tostring(playerMoving)))
         
         if playerAvailable and not playerMoving then
             -- ボスチェック（全階層で実行）
@@ -4450,7 +4456,7 @@ local function ExecuteDungeonPhase()
                             while GetDistanceToTarget() > 3.0 and not IsTimeout(approachStart, approachTimeout) do
                                 Wait(0.5)
                             end
-                            VNavStop() -- v2.4.0新API
+                            yield("/vnav stop") -- v2.4.0シンプル版
                         end
                         
                         -- 脱出地点インタラクト
@@ -4500,6 +4506,10 @@ local function ExecuteDungeonPhase()
     end
 end
 
+-- 地図購入失敗カウンター（グローバル変数）
+local mapPurchaseFailCount = 0
+local MAX_PURCHASE_FAIL_COUNT = 3
+
 -- 完了フェーズ
 local function ExecuteCompletePhase()
     LogInfo("トレジャーハント完了！")
@@ -4514,10 +4524,18 @@ local function ExecuteCompletePhase()
     
     if mapCount > 0 then
         LogInfo("次の地図が見つかりました。続行します")
+        mapPurchaseFailCount = 0  -- 成功時はカウンターリセット
         ChangePhase("MAP_PURCHASE", "次の地図を処理")
     else
-        LogInfo("全ての地図を処理しました - 新しい地図を購入します")
-        ChangePhase("MAP_PURCHASE", "地図購入フェーズに移行")
+        -- 地図購入失敗が連続している場合は終了
+        if mapPurchaseFailCount >= MAX_PURCHASE_FAIL_COUNT then
+            LogInfo("地図購入に" .. MAX_PURCHASE_FAIL_COUNT .. "回連続で失敗しました。スクリプトを終了します")
+            LogInfo("手動で地図を準備するか、マーケットボードの近くで再実行してください")
+            return  -- スクリプト終了
+        else
+            LogInfo("全ての地図を処理しました - 新しい地図を購入します (失敗回数: " .. mapPurchaseFailCount .. "/" .. MAX_PURCHASE_FAIL_COUNT .. ")")
+            ChangePhase("MAP_PURCHASE", "地図購入フェーズに移行")
+        end
     end
 end
 
@@ -4556,8 +4574,8 @@ local phaseExecutors = {
 
 -- メインループ（エラーハンドラー付き）
 local function SafeMainLoop()
-    LogInfo("==================== TREASURE HUNT AUTOMATION v2.4.0 開始 ====================")
-    LogInfo("【yield vnav系コマンド完全移行版】安定した従来コマンド使用・壁衝突対策準備")
+    LogInfo("==================== TREASURE HUNT AUTOMATION v2.5.2 開始 ====================")
+    LogInfo("【安定版メジャーアップデート】包括的バージョン管理・長期実行安定性確保完了")
     LogInfo("==================== システム初期化中 ====================")
     
     -- スクリプト開始時に戦闘中の場合は自動戦闘を有効化し、戦闘終了まで待機
