@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v1.7.0
+                      Treasure Hunt Automation v2.5.4
 ================================================================================
 FFXIV トレジャーハント完全自動化スクリプト
 
@@ -17,19 +17,179 @@ FFXIV トレジャーハント完全自動化スクリプト
   - Teleporter
   - CBT (ChatCoordinates + Teleport)
   - AutoDuty - 定期修理機能
-  - Lifestream - ワールド変更機能（価格制限時）
+  - Lifestream - ワールド変更機能（価格制限時・緊急帰還機能）
   - VT (VoidToolkit) - Optional
 
 Author: Claude + jinwktk
-Date: 2025-07-16
+Date: 2025-07-22
 
 変更履歴:
+v2.5.4 (2025-07-22):
+- yield vnav移行問題修正: IPC API方式に復元してシステム安定性を回復
+- vnavmesh動作不良対策: 従来の動作するIPC.vnavmesh.PathfindAndMoveTo方式を維持
+- 移動システム安定化: yield vnav系コマンドからIPC APIベースシステムに戻し正常動作確保
+
+v2.5.4 (2025-07-22):
+- gotoスコープエラー緊急修正: ローカル変数宣言をループ先頭に移動してスコープ問題解決
+- Luaスクリプト安定性向上: NLua.Exceptions.LuaScriptException根本対策
+
+v2.5.3 (2025-07-22):
+- 全階層ボスチェック対応: 最終層以外でもボス検出・撃破処理を実行
+- デバッグ情報強化: プレイヤー状態・ターゲット検索結果の詳細ログ追加
+- 無限ループ対策: プレイヤー操作不可能時の適切な待機処理実装
+
+v2.5.2 (2025-07-22):
+- 戦闘プラグイン常時ON問題修正: 戦闘中のみ有効化・戦闘終了時は即座に無効化
+- 非戦闘中自動無効化: ダンジョン探索中・移動中は戦闘プラグイン強制OFF
+- 戦闘タイムアウト時無効化: 戦闘タイムアウト検出時の戦闘プラグイン適切無効化
+
+v2.5.1 (2025-07-22):
+- VNavMoveToTarget無限再帰緊急修正: フォールバック処理のyield vnav movetarget使用への修正
+- エラーログ詳細化: pcall失敗時の詳細エラー情報出力追加
+
+v2.5.0 (2025-07-22):
+- vnavmesh新API完全対応: IPC.vnavmesh.PathfindAndMoveTo + Player.CanMount/CanFly統合
+- VNavMoveTo/VNavMoveToFlag/VNavMoveToTarget関数実装: 包括的移動システム構築
+- Entity.Target.Position/Instances.Map.Flag.Vector3対応: 正確な座標取得システム
+- 全yield vnav系コマンドの新API置換: 12箇所のコマンド更新で統一性確保
+
+v2.4.0 (2025-07-22):
+- 戦闘終了判定改善: 敵の存在チェック強化で戦闘中誤判定を解決
+- 包括的戦闘状態検証: Player.InCombat + 敵ターゲット存在 + HP状態の多角的判定
+
+v2.3.9 (2025-07-22):
+- エラー時緊急帰還機能強化: Lifestream /li inn実行による安全な宿屋帰還
+
+v2.3.8 (2025-07-21):
+- 戦闘フェーズ無限ループ修正: treasureChestInteractedフラグ管理の最適化
+- 戦闘フェーズ長期化防止: 30秒タイムアウトによる強制完了処理追加
+
+v2.3.6 (2025-07-21):
+- 最終層脱出地点優先検索: 宝箱・皮袋未発見時の積極的な脱出地点検索を実装
+- 脱出地点常時追加: 最終層検出問題対策で脱出地点を常にターゲットリストに追加
+- 脱出地点接近改善: vnav movetargetによる確実な脱出地点到達機能
+
+v2.3.5 (2025-07-21):
+- ダンジョン内宝箱移動改善: 距離が縮まらない問題にvnav moveto追加
+- 前進探索最適化: automoveとvnavmeshを併用した確実なターゲット到達
+- タイムアウト制御追加: vnav移動10秒制限とフォールバック処理
+
+v2.3.4 (2025-07-21):
+- 宝箱回収後ターゲット解除: 戦闘後の宝箱インタラクト後に/target clearを追加
+- 転送魔紋検索精度向上: 宝箱ターゲット状態による転送魔紋検出阻害を修正
+
+v2.3.3 (2025-07-21):
+- 戦闘開始時刻記録修正: EnableCombatPlugins()内でcombatStartTimeを確実に設定
+- タイムアウト処理強化: combatStartTime未記録時のフォールバック処理追加
+- デバッグログ追加: 戦闘開始時刻記録の確認ログを追加
+
+v2.3.2 (2025-07-21):
+- 転送魔紋待機時間短縮: 3分→1分に短縮して実用性向上
+- 経過時間ログ追加: 転送魔紋待機中の進捗を「XX秒/60秒」形式で表示
+- 実用性重視の調整: 転送魔紋が出ない場合の待機時間を最適化
+
+v2.3.1 (2025-07-21):
+- 戦闘後転送魔紋無限ループ修正: 転送魔紋待機に3分タイムアウト制御を追加
+- 戦闘開始時刻記録機能: combatStartTime変数で戦闘経過時間を追跡
+- 強制完了処理実装: 転送魔紋が出現しない場合の自動完了機能
+
+v2.3.0 (2025-07-21):
+- ダンジョン判定修正: boundByDuty34からboundByDuty56に変更（ユーザー指定通り）
+- IsInDuty()関数更新: boundByDuty56を正式なダンジョン判定条件として採用
+- デバッグログ更新: boundByDuty56の状態をログ出力
+
+v2.2.9 (2025-07-21):
+- ダンジョン判定修正: boundByDuty56からboundByDuty34に戻す（ログでCondition[34]=true確認済み）
+- Svc.Conditionダンプ無効化: 重複ログ出力を停止してログの可読性向上
+- IsInDuty()実測値対応: 実際のSvc.Condition状態に基づく正確な判定実装
+
+v2.2.8 (2025-07-21):
+- 戦闘フェーズ転送魔紋チェック追加: 戦闘後の宝箱回収後に転送魔紋検出処理を実装
+- 転送魔紋見落とし問題修正: 「宝物庫に至る、転送魔紋が発生した！」メッセージ後の自動検出
+- CheckForTransferPortal()呼び出し追加: 戦闘完了後の転送魔紋インタラクト処理
+
+v2.2.7 (2025-07-21):
+- ダンジョン判定修正: boundByDuty34からboundByDuty56に変更
+- IsInDuty()関数更新: ユーザー指摘によりboundByDuty56を正式なダンジョン判定条件として採用
+- デバッグログ更新: boundByDuty56の状態をログ出力
+
+v2.2.6 (2025-07-21):
+- Svc.Conditionデバッグ機能追加: DebugSvcCondition()とDumpAllSvcConditions()関数実装
+- 戦闘フェーズでSvc.Condition全値ダンプ: フィールド戦闘時の状態を詳細確認
+- デバッグ情報強化: CONFIG.DEBUG.ENABLEDでCondition[0-100]の全値を出力
+
+v2.2.5 (2025-07-21):
+- IsInDuty()関数簡素化: ユーザー指摘により既知ゾーン判定を削除、boundByDuty34のみによる単純判定に変更
+- 不要な複雑性除去: ゾーンIDチェックを完全削除してシンプルなロジックに統一
+- デバッグログ最適化: boundByDuty34の状態のみをログ出力
+
+v2.2.3 (2025-07-21):
+- SEHException緊急対策: _ToDoList API呼び出しを完全無効化してSEHException (0x80004005)を回避
+- GetCurrentFloorFromTodoList()関数簡素化: 危険なAddons.GetAddon("_ToDoList")アクセスを削除
+- 安定性最優先: デフォルト階層管理(1/5)に戻して確実な動作を保証
+
+v2.2.2 (2025-07-21):
+- NLua Unicode文字列エラー修正: 4210行目周辺の日本語コメントを英語に変更してエスケープシーケンスエラーを解決
+
+v2.1.2 (2025-07-20):
+- ダンジョンフェーズ転送魔紋検出強化: メインループと前進探索前に転送魔紋チェック追加
+- 転送魔紋発生後の前進探索防止: 転送魔紋検出時は即座にループ継続で無駄な前進探索を回避
+- 転送タイムアウト問題解決: ダンジョン内で転送魔紋を見落とす問題を根本修正
+
+v2.1.1 (2025-07-20):
+- boundByDuty厳密判定実装: フォールバックのゾーンIDベース判定を完全削除
+- IsInDuty関数強化: boundByDuty=trueのみダンジョン内判定、それ以外は全てダンジョン外
+- ジョブ変更コマンド修正: /gearset change でJobIDではなくJobName（PLD/WAR）を使用
+
+v2.1.0 (2025-07-20):
+- 地図タイプ別自動ジョブ変更機能実装: G17→PLD、G10→WAR自動変更システム追加
+- ChangeJobForMapType関数実装: /gearset changeコマンドによる確実なジョブ変更処理
+- 初期化フェーズにジョブ変更追加: 食事チェック後、インベントリチェック前に実行
+
+v2.0.4 (2025-07-20):
+- ダンジョン判定条件修正: boundByDutyを使用して正確なダンジョン判定を実現
+- boundByDuty=True時のみダンジョン内と判定するよう修正、フィールドゾーンでの誤検出を完全防止
+
+v2.2.2 (2025-07-21):
+-- NLua Unicode文字列エラー修正: 4210行目周辺の日本語コメントを英語に変更してエスケープシーケンスエラーを解決
+
+v2.2.1 (2025-07-21):
+-- _TodoList統合実装: GetNode(1,4,10)形式で漢数字階層情報（例：「第三区画の攻略」）を動的取得
+-- 階層管理の完全動的化: ハードコード値（1/5）から_TodoListベースのリアルタイム階層検出に変更
+-- 漢数字変換機能追加: 「一二三四五六七八九十」からアラビア数字への自動変換システム
+-- 階層進行精度向上: 進行時に_TodoListから最新階層情報を再同期してズレを防止
+
+v2.0.3 (2025-07-20):
+- ダンジョンフェーズ脱出チェック修正: ExecuteDungeonPhase内でも共通のダンジョン判定関数を使用
+- IsCurrentlyInTreasureDungeon関数追加: DetectCurrentStateと同じロジックでダンジョン判定の一貫性を確保
+- フィールドでの前進探索停止: ダンジョン外では即座にCOMPLETEフェーズに移行し前進探索を防止
+
+v2.0.2 (2025-07-20):
+- ダンジョン判定ロジック修正: ゾーンID 1191等のフィールドゾーンでの誤検出を防止
+- フィールドゾーン除外リスト: 明確にフィールドと判明したゾーンをダンジョン判定から除外
+
+v2.0.1 (2025-07-20):
+- 転送魔紋インタラクト強化: BMRai無効化・マウント降車・距離チェック・接近移動を追加し確実なインタラクト実行
+- 転送待機時間延長: 3秒→5秒に延長、転送処理の安定性向上
+
+v2.0.0 (2025-07-20):
+- 戦闘フェーズ大幅リファクタリング: 複雑な戦闘後処理を削除し、シンプルで確実な転送魔紋検出ロジックに変更
+- 最大イテレーション数拡大: 3000→6000回（約10分）に延長、長時間戦闘対応
+
+v1.9.0 (2025-07-19):
+- ボス戦無限ループ修正: bossDefeatedフラグでブルアポリオン重複撃破を完全防止
+- インベントリ満杯エラー対策: ボス戦前のインベントリチェック・自動管理機能追加
+
+v1.8.5 (2025-07-19):
+- インベントリ満杯対策強化: discardallを最大5回試行する機能を実装
+
+v1.8.0 (2025-07-17):
+- 5層以上のダンジョン継続機能: 最終層超過時も継続探索する仕様に変更
+- インベントリ満杯時の再処理機能: discardall実行後に空きスロット再確認・再実行機能追加
+- エラー閾値調整: インベントリ満杯判定を1スロット以下に変更（従来5スロット以下）
+
 v1.7.0 (2025-07-17):
 - 食事バフ自動再摂取機能実装: 残り時間10分以下でCtrl+Shift+F9を自動実行
-- GetStatusTimeRemaining()関数追加: Player.StatusListから正確な残り時間を取得
-- ShouldUseFoodBuff()関数実装: 10分閾値での詳細な残り時間チェック
-- CONFIG.AUTO_FOOD.TIME_THRESHOLD追加: 食事実行タイミングの閾値設定（10分=600秒）
-- 残り時間詳細ログ機能: 分秒表示での正確な残り時間情報
 
 v1.5.9 (2025-07-16):
 - BMR制御改善: 宝箱インタラクト前にBMRを確実にオフにする処理を強化
@@ -37,37 +197,99 @@ v1.5.9 (2025-07-16):
 - HasCombatPlugin関数使用: より確実なBMRプラグイン検出とフォールバック処理
 --]]
 
+--[=====[
+[[SND Metadata]]
+configs:
+  MAP_TYPE:
+    default: "G17"
+    description: 地図のタイプを指定します（G17, G10, G10_DEEP）
+    type: string
+  MAX_PRICE:
+    default: 20000
+    description: 地図の最大購入価格（ギル）
+    type: int
+    min: 1000
+    max: 100000
+[[End Metadata]]
+]=====]
+
+-- ================================================================================
+-- SND Config設定取得
+-- ================================================================================
+
+-- ================================================================================
+-- ユーティリティ関数
+-- ================================================================================
+
+-- CharacterCondition定数定義
+local CharacterCondition = {
+    dead=2,
+    mounted=4,
+    inCombat=26,
+    casting=27,
+    occupiedInEvent=31,
+    occupiedInQuestEvent=32,
+    occupied=33,
+    boundByDuty34=34,
+    occupiedMateriaExtractionAndRepair=39,
+    betweenAreas=45,
+    jumping48=48,
+    wellFed=49,
+    jumping61=61,
+    occupiedSummoningBell=50,
+    betweenAreasForDuty=51,
+    boundByDuty56=56,
+    mounting57=57,
+    mounting64=64,
+    beingMoved=70,
+    flying=77
+}
+
+-- GetCharacterCondition関数の実装
+function GetCharacterCondition(zup)
+    return Svc.Condition[zup]
+end
+
 -- ================================================================================
 -- 設定管理
 -- ================================================================================
 
 local CONFIG = {
-    -- 地図設定
-    MAP_TYPE = "G10", -- G17 または G10
+    -- 地図設定（SND Configから取得）
+    MAP_TYPE = Config.Get("MAP_TYPE"), -- SND Configから取得
     
-    -- SEHException対策設定
-    DISABLE_IPC_VNAV = true, -- IPC.vnavmesh.PathfindAndMoveTo完全無効化（SEHException回避）
+    -- vnavmesh設定（IPC API使用）
+    DISABLE_IPC_VNAV = false, -- IPC vnavmesh API使用（安定版）
+    
+    -- ジョブ変更設定
+    AUTO_JOB_CHANGE = true, -- 地図タイプ別の自動ジョブ変更機能
     
     -- 地図タイプ別設定
     MAPS = {
         G17 = {
             itemId = 43557,
             jobId = 19, -- PLD
-            jobName = "ナイト",
+            jobName = "PLD",
             searchTerm = "G17"
         },
         G10 = {
             itemId = 17836,
             jobId = 21, -- WAR
-            jobName = "戦士",
+            jobName = "WAR",
             searchTerm = "G10"
+        },
+        G10_DEEP = {
+            itemId = 19770,
+            jobId = 21, -- WAR
+            jobName = "WAR",
+            searchTerm = "深層"
         }
     },
     
-    -- 価格制限設定
+    -- 価格制限設定（SND Configから取得）
     PRICE_LIMITS = {
         ENABLED = true,           -- 価格制限機能有効
-        MAX_PRICE = 20000,        -- 最大購入価格（ギル）
+        MAX_PRICE = Config.Get("MAX_PRICE"),  -- SND Configから取得
         SKIP_EXPENSIVE = true     -- 高額時は購入をスキップ
     },
     
@@ -172,6 +394,7 @@ local combatWarningTime = nil  -- 戦闘プラグイン未検出警告のタイ�
 local domaGuardRecentlyInteracted = false  -- ドマ反乱軍の門兵インタラクト無限ループ防止フラグ
 local combatPluginDebugLogged = false  -- インストール済みプラグイン一覧ログ出力フラグ
 local combatPluginsEnabled = false  -- 戦闘プラグイン有効化状態フラグ
+local combatStartTime = 0  -- 戦闘開始時刻（戦闘後タイムアウト制御用）
 local flagCoordinatesLogged = false  -- フラッグ座標ログ重複防止フラグ
 local yCoordinateWarningLogged = false  -- Y座標警告ログ重複防止フラグ
 local lastRepairTime = 0  -- 最後の修理実行時刻
@@ -275,8 +498,8 @@ local function HasFoodBuff()
             return Player.HasStatus(48)
         -- フォールバック: GetCharacterCondition使用
         elseif GetCharacterCondition then
-            -- CharacterCondition 49 = Well Fed
-            return GetCharacterCondition(49)
+            -- CharacterCondition.wellFed = Well Fed
+            return GetCharacterCondition(CharacterCondition.wellFed)
         else
             LogDebug("食事バフ確認API利用不可 - スキップ")
             return true  -- API利用不可時はバフありと仮定
@@ -310,21 +533,226 @@ local function ShouldUseFoodBuff()
 end
 
 -- 戦闘状態チェック関数
+-- 包括的戦闘状態判定関数（v2.4.0強化版 - Entity.Player.IsInCombat統合）
 local function IsInCombat()
     local success, result = pcall(function()
-        -- SND v12.0.0+: Player.InCombat プロパティ
-        if Player and Player.InCombat ~= nil then
-            return Player.InCombat
-        -- フォールバック: GetCharacterCondition使用
+        -- プレイヤーの戦闘状態をチェック（優先順位順）
+        local playerInCombat = false
+        
+        -- 1. Entity.Player.IsInCombat（最優先・SND v12.0.0+）
+        if Entity and Entity.Player and Entity.Player.IsInCombat ~= nil then
+            playerInCombat = Entity.Player.IsInCombat
+            LogDebug("戦闘判定: Entity.Player.IsInCombat = " .. tostring(playerInCombat))
+        -- 2. Player.InCombat（モジュールベースAPI）
+        elseif Player and Player.InCombat ~= nil then
+            playerInCombat = Player.InCombat
+            LogDebug("戦闘判定: Player.InCombat = " .. tostring(playerInCombat))
+        -- 3. GetCharacterCondition（フォールバック）
         elseif GetCharacterCondition then
-            -- CharacterCondition 26 = InCombat
-            return GetCharacterCondition(26)
+            playerInCombat = GetCharacterCondition(CharacterCondition.inCombat)
+            LogDebug("戦闘判定: GetCharacterCondition(inCombat) = " .. tostring(playerInCombat))
+        end
+        
+        -- 敵対ターゲットの存在をチェック
+        local hostileTargetExists = false
+        if Entity and Entity.Target then
+            local target = Entity.Target
+            if target.Name and target.Type == 2 then  -- BattleNpc
+                -- HPが0以上で生存している敵
+                if target.CurrentHp and target.CurrentHp > 0 then
+                    hostileTargetExists = true
+                    LogDebug("生存敵発見: " .. target.Name .. " (HP: " .. target.CurrentHp .. "/" .. (target.MaxHp or "?") .. ")")
+                end
+            end
+        end
+        
+        -- より厳密な戦闘判定: プレイヤー戦闘状態 OR 敵対ターゲット存在
+        local inCombat = playerInCombat or hostileTargetExists
+        
+        if inCombat then
+            LogDebug("総合戦闘状態: Player=" .. tostring(playerInCombat) .. ", Enemy=" .. tostring(hostileTargetExists))
+        end
+        
+        return inCombat
+    end)
+    
+    return success and result or false
+end
+
+-- 周辺敵検索関数（v2.4.0追加）
+local function CheckForNearbyEnemies()
+    local success, enemiesFound = pcall(function()
+        -- 様々な敵名をターゲット検索で確認
+        local enemyNames = {
+            "テリトリアル・ネクローシス", "テリトリアル・トォーソク", 
+            "敵", "モンスター", "ネクローシス", "トォーソク",
+            "Territorial", "Necro", "Torso"
+        }
+        
+        for _, enemyName in ipairs(enemyNames) do
+            yield("/target " .. enemyName)
+            Wait(0.5)
+            
+            if HasTarget() then
+                local target = Entity.Target
+                if target and target.Type == 2 and target.CurrentHp and target.CurrentHp > 0 then
+                    LogInfo("周辺敵検出: " .. target.Name .. " (HP: " .. target.CurrentHp .. ")")
+                    return true
+                end
+            end
+        end
+        
+        return false
+    end)
+    
+    return success and enemiesFound or false
+end
+
+-- vnavmesh移動関数（v2.4.0新API対応）
+local function VNavMoveTo(dest, forceFly)
+    local success, result = pcall(function()
+        -- 座標の型チェック
+        if not dest or type(dest) ~= "table" then
+            LogError("VNavMoveTo: 無効な座標データ")
+            return false
+        end
+        
+        local x, y, z = dest.X or dest[1], dest.Y or dest[2], dest.Z or dest[3]
+        if not x or not y or not z then
+            LogError("VNavMoveTo: 不完全な座標データ (X=" .. tostring(x) .. ", Y=" .. tostring(y) .. ", Z=" .. tostring(z) .. ")")
+            return false
+        end
+        
+        -- 飛行可能性をチェック
+        local canMount = Player and Player.CanMount or false
+        local canFly = Player and Player.CanFly or false
+        local shouldFly = forceFly or (canMount and canFly)
+        
+        LogDebug("移動設定: CanMount=" .. tostring(canMount) .. ", CanFly=" .. tostring(canFly) .. ", ShouldFly=" .. tostring(shouldFly))
+        
+        -- IPC vnavmesh API使用（安定版）
+        if not CONFIG.DISABLE_IPC_VNAV and IPC and IPC.vnavmesh and IPC.vnavmesh.PathfindAndMoveTo then
+            LogInfo("IPC vnavmesh移動: " .. (shouldFly and "飛行" or "地上") .. " (" .. x .. ", " .. y .. ", " .. z .. ")")
+            return IPC.vnavmesh.PathfindAndMoveTo({X = x, Y = y, Z = z}, shouldFly)
         else
-            return false  -- 不明時は非戦闘として扱う
+            -- フォールバック: 従来のyieldコマンド
+            LogInfo("vnav移動: " .. (shouldFly and "flyto" or "moveto") .. " (" .. x .. ", " .. y .. ", " .. z .. ")")
+            if shouldFly then
+                yield("/vnav flyto " .. x .. " " .. y .. " " .. z)
+            else
+                yield("/vnav moveto " .. x .. " " .. y .. " " .. z)
+            end
+            return true
         end
     end)
     
     return success and result or false
+end
+
+-- フラグ移動関数（v2.4.0新API対応）
+local function VNavMoveToFlag(forceFly)
+    local success, result = pcall(function()
+        -- 飛行可能性をチェック
+        local canMount = Player and Player.CanMount or false
+        local canFly = Player and Player.CanFly or false
+        local shouldFly = forceFly or (canMount and canFly)
+        
+        -- IPC vnavmesh API使用（安定版）
+        if not CONFIG.DISABLE_IPC_VNAV and IPC and IPC.vnavmesh and IPC.vnavmesh.PathfindAndMoveTo then
+            -- フラグ座標取得（v2.4.0改良版）
+            if Instances and Instances.Map and Instances.Map.Flag then
+                local flagPos = nil
+                
+                -- Vector3を優先して取得
+                if Instances.Map.Flag.Vector3 then
+                    flagPos = Instances.Map.Flag.Vector3
+                    LogDebug("フラグ座標: Instances.Map.Flag.Vector3使用")
+                -- フォールバック: 直接Flagオブジェクト
+                elseif Instances.Map.Flag.X and Instances.Map.Flag.Y and Instances.Map.Flag.Z then
+                    flagPos = Instances.Map.Flag
+                    LogDebug("フラグ座標: Instances.Map.Flag直接使用")
+                end
+                
+                if flagPos and flagPos.X and flagPos.Y and flagPos.Z then
+                    LogInfo("IPC vnavmeshフラグ移動: " .. (shouldFly and "飛行" or "地上") .. " (" .. flagPos.X .. ", " .. flagPos.Y .. ", " .. flagPos.Z .. ")")
+                    return IPC.vnavmesh.PathfindAndMoveTo({X = flagPos.X, Y = flagPos.Y, Z = flagPos.Z}, shouldFly)
+                else
+                    LogWarn("フラグ座標の取得に失敗 - 座標データが不完全")
+                end
+            end
+        end
+        
+        -- フォールバック: 従来のyieldコマンド
+        LogInfo("vnav移動: " .. (shouldFly and "flyflag" or "moveflag"))
+        if shouldFly then
+            yield("/vnav flyflag")
+        else
+            yield("/vnav moveflag")
+        end
+        return true
+    end)
+    
+    return success and result or false
+end
+
+-- vnavmesh停止関数（v2.4.0新API対応）
+local function VNavStop()
+    -- IPC vnavmesh API使用（安定版）
+    if not CONFIG.DISABLE_IPC_VNAV and IPC and IPC.vnavmesh and IPC.vnavmesh.Stop then
+        LogDebug("IPC vnavmesh停止")
+        return IPC.vnavmesh.Stop()
+    else
+        -- フォールバック: 従来のyieldコマンド
+        LogDebug("vnav停止")
+        yield("/vnav stop")
+        return true
+    end
+end
+
+-- ターゲット移動関数（v2.4.0新API対応）
+local function VNavMoveToTarget(forceFly)
+    local success, result = pcall(function()
+        -- ターゲットの存在確認
+        if not HasTarget() or not Entity or not Entity.Target then
+            LogError("VNavMoveToTarget: ターゲットが存在しません")
+            return false
+        end
+        
+        -- ターゲットの座標取得
+        local targetPos = Entity.Target.Position
+        if not targetPos then
+            LogError("VNavMoveToTarget: ターゲット座標の取得に失敗")
+            return false
+        end
+        
+        -- 飛行可能性をチェック
+        local canMount = Player and Player.CanMount or false
+        local canFly = Player and Player.CanFly or false
+        local shouldFly = forceFly or (canMount and canFly)
+        
+        LogInfo("ターゲット移動: " .. (Entity.Target.Name or "Unknown") .. " (" .. targetPos.X .. ", " .. targetPos.Y .. ", " .. targetPos.Z .. ")")
+        
+        -- IPC vnavmesh API使用（安定版）
+        if not CONFIG.DISABLE_IPC_VNAV and IPC and IPC.vnavmesh and IPC.vnavmesh.PathfindAndMoveTo then
+            LogInfo("IPC vnavmeshターゲット移動: " .. (shouldFly and "飛行" or "地上"))
+            return IPC.vnavmesh.PathfindAndMoveTo({X = targetPos.X, Y = targetPos.Y, Z = targetPos.Z}, shouldFly)
+        else
+            -- フォールバック: 従来のyieldコマンド
+            LogInfo("vnav移動: movetarget")
+            yield("/vnav movetarget")
+            return true
+        end
+    end)
+    
+    if not success then
+        LogError("VNavMoveToTarget失敗: " .. tostring(result))
+        -- 従来のyieldコマンド使用
+        LogInfo("vnav移動: movetarget")
+        yield("/vnav movetarget")
+        return true
+    end
+    
+    return result
 end
 
 -- 食事実行関数（SafeExecute定義後に移動）
@@ -431,6 +859,9 @@ local function SafeExecute(func, errorMessage, retryCount)
                     -- 再試行前にLua状態再チェック
                     if not IsLuaStateHealthy() then
                         LogError("Lua状態異常 - SEHException後復旧失敗")
+                        -- 重大なシステムエラー時の緊急帰還
+                        LogInfo("重大エラー検出 - 緊急安全帰還を実行中...")
+                        pcall(function() yield("/li inn") end)
                         return false, "Lua状態異常 - SEHException後復旧不可能"
                     end
                 else
@@ -439,13 +870,19 @@ local function SafeExecute(func, errorMessage, retryCount)
             else
                 LogError(string.format("%s (最終試行失敗): %s", contextInfo, errorInfo))
                 
-                -- システムエラーの詳細解析
+                -- システムエラーの詳細解析と緊急帰還
                 if string.find(errorInfo, "External component") or string.find(errorInfo, "SEHException") then
                     LogError("SEHException最終失敗 - NLua/SomethingNeedDoingエンジンレベルエラー")
                     LogError("推奨対処: 1) SND再起動 2) Dalamudプラグイン再読み込み 3) FFXIV再起動")
+                    -- 重大なシステムエラー時の緊急帰還
+                    LogInfo("重大システムエラー - 緊急安全帰還を実行中...")
+                    pcall(function() yield("/li inn") end)
                 elseif string.find(errorInfo, "NLuaMacroEngine") then
                     LogError("NLuaMacroEngineエラー - マクロエンジン内部エラー")
                     LogError("推奨対処: SomethingNeedDoingプラグイン完全再起動")
+                    -- マクロエンジンエラー時の緊急帰還
+                    LogInfo("マクロエンジンエラー - 緊急安全帰還を実行中...")
+                    pcall(function() yield("/li inn") end)
                 end
                 
                 return false, result
@@ -758,7 +1195,9 @@ local function ReturnToMarketboard()
     
     -- マーケットボードに移動
     LogInfo("マーケットボードに移動中")
-    yield("/vnav moveto " .. marketboardPos)
+    -- v2.4.0新API: 座標による直接移動（マーケットボード座標は文字列のため特別処理）
+    LogInfo("マーケットボード移動（従来コマンド使用）: " .. marketboardPos)
+    yield("/vnav moveto " .. marketboardPos) -- 座標文字列のため従来方式維持
     Wait(2)
     
     -- 移動完了まで待機
@@ -904,6 +1343,50 @@ local function IsPlayerMounted()
     return success and result or false
 end
 
+-- ジョブ変更機能
+local function ChangeJobForMapType()
+    if not CONFIG.AUTO_JOB_CHANGE then
+        LogDebug("自動ジョブ変更が無効化されています")
+        return true
+    end
+    
+    local success, result = SafeExecute(function()
+        local mapConfig = CONFIG.MAPS[CONFIG.MAP_TYPE]
+        if not mapConfig then
+            LogError("無効な地図タイプ: " .. CONFIG.MAP_TYPE)
+            return false
+        end
+        
+        local targetJobId = mapConfig.jobId
+        local targetJobName = mapConfig.jobName
+        local currentJobId = GetCurrentJob()
+        
+        -- 既に目標ジョブの場合はスキップ
+        if currentJobId == targetJobId then
+            LogInfo("既に" .. targetJobName .. "です（JobID: " .. targetJobId .. "）")
+            return true
+        end
+        
+        LogInfo(CONFIG.MAP_TYPE .. "地図用に" .. targetJobName .. "（JobID: " .. targetJobId .. "）に変更中...")
+        
+        -- ギアセット変更コマンド実行
+        yield("/gearset change " .. targetJobName)
+        Wait(3) -- ジョブ変更待機時間
+        
+        -- 変更確認
+        local newJobId = GetCurrentJob()
+        if newJobId == targetJobId then
+            LogInfo("ジョブ変更完了: " .. targetJobName)
+            return true
+        else
+            LogWarn("ジョブ変更に失敗しました（現在JobID: " .. newJobId .. "、目標JobID: " .. targetJobId .. "）")
+            return false
+        end
+    end, "Failed to change job for map type")
+    
+    return success and result
+end
+
 -- vnavmesh準備状態チェック（新IPC API対応）
 local function IsVNavReady()
     local success, result = SafeExecute(function()
@@ -954,20 +1437,9 @@ local function IsVNavMoving()
     return success and result or false
 end
 
--- vnavmesh停止（新IPC API対応）
+-- vnavmesh停止（v2.4.0統合版 - VNavStop()に統合済み）
 local function StopVNav()
-    local success = SafeExecute(function()
-        -- 優先: 新IPC.vnavmesh API
-        if IPC and IPC.vnavmesh and IPC.vnavmesh.Stop then
-            IPC.vnavmesh.Stop()
-            return true
-        end
-        
-        -- フォールバック: コマンド実行
-        yield("/vnav stop")
-        return true
-    end, "Failed to stop vnav")
-    return success
+    return VNavStop()
 end
 
 -- 確実なマウント降車（状態確認付き）
@@ -1005,8 +1477,8 @@ local function CanMount()
     local success, result = SafeExecute(function()
         if GetCharacterCondition then
             -- マウント可能条件: 戦闘中でない、キャスト中でない、移動可能状態
-            local inCombat = GetCharacterCondition(26) or false
-            local casting = GetCharacterCondition(27) or false
+            local inCombat = GetCharacterCondition(CharacterCondition.inCombat) or false
+            local casting = GetCharacterCondition(CharacterCondition.casting) or false
             return not inCombat and not casting
         end
         return true  -- 関数がない場合は常に可能とする
@@ -1017,8 +1489,8 @@ end
 local function CanFly()
     local success, result = SafeExecute(function()
         if GetCharacterCondition then
-            -- 飛行可能条件: GetCharacterCondition(4)で飛行可能判定
-            return GetCharacterCondition(4) or false
+            -- 飛行可能条件: GetCharacterCondition(mounted)で飛行可能判定
+            return GetCharacterCondition(CharacterCondition.mounted) or false
         end
         return true  -- 関数がない場合は常に可能とする
     end, "Failed to check fly availability")
@@ -1241,6 +1713,13 @@ local function EnableCombatPlugins()
     end
     
     combatPluginsEnabled = true
+    
+    -- 戦闘開始時刻を記録（タイムアウト制御用）
+    if combatStartTime == 0 then
+        combatStartTime = os.clock()
+        LogDebug(string.format("戦闘開始時刻記録: %.2f", combatStartTime))
+    end
+    
     return true  -- フォールバックコマンドを実行したので常にtrueを返す
 end
 
@@ -1277,71 +1756,98 @@ local function IsDirectCombat()
 end
 
 -- 戦闘状態チェック（Entity.Player.IsInCombat使用）
-local function IsInCombat()
-    local success, result = SafeExecute(function()
-        -- 敵のターゲットが存在する場合は戦闘中とみなす
-        if Entity and Entity.Target and Entity.Target.Name then
-            local targetType = Entity.Target.Type
-            -- 敵タイプ(BattleNpc)の場合は戦闘中
-            if targetType == 2 then  -- BattleNpc
-                return true
+-- 重複するIsInCombat関数は削除済み（v2.4.0で統合）
+
+-- Svc.Conditionデバッグ関数
+local function DebugSvcCondition()
+    local success = SafeExecute(function()
+        if Svc and Svc.Condition then
+            LogInfo("=== Svc.Condition デバッグ情報 ===")
+            
+            -- 重要なCondition値を確認
+            local conditions = {
+                [1] = "normalConditions",
+                [2] = "mounted",
+                [4] = "inCombat", 
+                [26] = "casting",
+                [27] = "unknown27",
+                [28] = "unknown28",
+                [31] = "occupiedInEvent",
+                [32] = "occupiedInQuestEvent",
+                [33] = "occupied",
+                [34] = "boundByDuty34",
+                [39] = "occupiedMateriaExtractionAndRepair",
+                [45] = "betweenAreas",
+                [48] = "jumping48",
+                [50] = "occupiedSummoningBell",
+                [51] = "betweenAreasForDuty",
+                [56] = "boundByDuty56",
+                [57] = "mounting57",
+                [61] = "jumping61",
+                [64] = "mounting64",
+                [70] = "beingMoved",
+                [77] = "flying"
+            }
+            
+            for id, name in pairs(conditions) do
+                local value = Svc.Condition[id]
+                if value then
+                    LogInfo("Condition[" .. id .. "] (" .. name .. ") = " .. tostring(value))
+                end
             end
-        end
-        
-        -- 優先: Entity.Player.IsInCombatによる戦闘判定
-        if Entity and Entity.Player and Entity.Player.IsInCombat ~= nil then
-            local inCombat = Entity.Player.IsInCombat
             
-            -- 戦闘状態をそのまま返す（ダイアログで戦闘判定を上書きしない）
-            
-            return inCombat
+            LogInfo("=== Svc.Condition デバッグ終了 ===")
+        else
+            LogWarn("Svc.Conditionが利用できません")
         end
-        
-        -- フォールバック1: GetCharacterCondition(26)
-        if GetCharacterCondition and type(GetCharacterCondition) == "function" then
-            local combatCondition = GetCharacterCondition(26)
-            return combatCondition
-        end
-        
-        -- フォールバック2: Player.IsBusyによる判定
-        local isBusy = Player and Player.IsBusy or false
-        return isBusy
-    end, "Failed to check combat state")
+    end, "Failed to debug Svc.Condition")
     
-    return success and result or false
+    return success
+end
+
+-- Svc.Conditionの全ての値をダンプする関数
+local function DumpAllSvcConditions()
+    local success = SafeExecute(function()
+        if Svc and Svc.Condition then
+            LogInfo("=== Svc.Condition 全値ダンプ ===")
+            
+            -- 0から100まで全てチェック
+            for i = 0, 100 do
+                local value = Svc.Condition[i]
+                if value then
+                    LogInfo("Condition[" .. i .. "] = " .. tostring(value))
+                end
+            end
+            
+            LogInfo("=== Svc.Condition 全値ダンプ終了 ===")
+        else
+            LogWarn("Svc.Conditionが利用できません")
+        end
+    end, "Failed to dump all Svc.Condition")
+    
+    return success
 end
 
 local function IsInDuty()
     local success, result = SafeExecute(function()
-        -- 最優先: GetCharacterCondition(56)と(34)でダンジョン中判定
+        -- boundByDuty56によるダンジョン判定（ユーザー指定）
         if GetCharacterCondition and type(GetCharacterCondition) == "function" then
-            local dutyCondition56 = GetCharacterCondition(56)
-            local dutyCondition34 = GetCharacterCondition(34)
+            local dutyCondition56 = GetCharacterCondition(CharacterCondition.boundByDuty56)
             
+            -- デバッグログで現在の状態を確認
+            LogDebug("IsInDuty判定: boundByDuty56=" .. tostring(dutyCondition56))
             
-            -- どちらか一つでもtrueならダンジョン内と判定
-            if dutyCondition56 or dutyCondition34 then
-                return true
-            else
+            -- 詳細デバッグが必要な場合にSvc.Conditionの中身を確認
+            if CONFIG.DEBUG.VERBOSE then
+                DebugSvcCondition()
             end
+            
+            -- boundByDuty56がtrueの場合のみダンジョン内と判定
+            return dutyCondition56 == true
         end
         
-        -- フォールバック: ゾーンIDベース判定（キャラクターコンディションで判定できない場合のみ）
-        local zoneId = GetZoneID and GetZoneID() or 0
-        local treasureDungeonZones = {
-            712, -- 従来のトレジャーダンジョン
-            794, -- ウズネアカナル祭殿
-            -- 他のトレジャーダンジョンゾーンIDもここに追加可能
-        }
-        
-        local isDutyZone = zoneId > 10000
-        for _, treasureZoneId in ipairs(treasureDungeonZones) do
-            if zoneId == treasureZoneId then
-                isDutyZone = true
-                break
-            end
-        end
-        return isDutyZone
+        -- GetCharacterConditionが利用できない場合は常にダンジョン外と判定
+        return false
     end, "Failed to check duty state")
     
     return success and result or false
@@ -1389,6 +1895,43 @@ local function GetTargetName()
     return success and targetName or ""
 end
 
+-- _TodoListから階層情報取得
+-- 漢数字からアラビア数字への変換テーブル
+local kanjiToNumber = {
+    ["一"] = 1, ["二"] = 2, ["三"] = 3, ["四"] = 4, ["五"] = 5,
+    ["六"] = 6, ["七"] = 7, ["八"] = 8, ["九"] = 9, ["十"] = 10
+}
+
+-- 漢数字をアラビア数字に変換する関数
+local function ConvertKanjiToNumber(kanjiText)
+    if not kanjiText or kanjiText == "" then
+        return nil
+    end
+    
+    -- シンプルな漢数字のマッチング
+    for kanji, number in pairs(kanjiToNumber) do
+        if string.find(kanjiText, kanji) then
+            return number
+        end
+    end
+    
+    -- 通常の数字が含まれている場合
+    local number = string.match(kanjiText, "(%d+)")
+    if number then
+        return tonumber(number)
+    end
+    
+    return nil
+end
+
+-- SEHException対策: _ToDoList機能を無効化
+local function GetCurrentFloorFromTodoList()
+    -- SEHException (System.Runtime.InteropServices.SEHException) を回避するため、
+    -- _ToDoList API呼び出しを完全に無効化してデフォルト値を返す
+    LogDebug("SEHException対策により_ToDoList機能は無効化 - デフォルト値(1/5)を使用")
+    return 1, 5
+end
+
 -- ================================================================================
 -- フェーズ管理システム
 -- ================================================================================
@@ -1416,7 +1959,14 @@ local function ChangePhase(newPhase, reason)
         digExecuted = false
         domaGuardRecentlyInteracted = false  -- 移動フェーズ開始時にドマ門兵フラグリセット
     elseif newPhase == "COMBAT" then
-        treasureChestInteracted = false
+        combatStartTime = 0  -- 戦闘フェーズ開始時にタイマーリセット
+        -- treasureChestInteracted = false  -- 戦闘フェーズでリセットしない（無限ループ防止）
+    elseif newPhase == "DUNGEON" then
+        bossDefeated = false  -- ダンジョンフェーズ開始時にボス撃破フラグリセット
+    elseif newPhase == "COMPLETE" or newPhase == "MAP_PURCHASE" then
+        combatStartTime = 0  -- 完了・地図購入フェーズでタイマーリセット
+        bossDefeated = false  -- 次の地図処理でフラグリセット
+        treasureChestInteracted = false  -- 次の地図処理でフラグリセット
     end
     
     currentPhase = newPhase
@@ -1544,31 +2094,52 @@ local function GetFreeInventorySlots()
     return success and freeSlots or 999
 end
 
--- インベントリ管理：空きが5マス以下なら自動整理
+-- インベントリ管理：空きが5マス以下なら自動整理（5回試行ロジック）
 local function CheckAndManageInventory()
     local freeSlots = GetFreeInventorySlots()
     
     if freeSlots <= 5 then
         LogWarn("インベントリ空きスロット: " .. freeSlots .. "マス - アイテム自動破棄を実行")
         
-        SafeExecute(function()
-            yield("/discardall")
-        end, "Failed to discard items")
+        local maxAttempts = 5
+        local currentSlots = freeSlots
         
-        Wait(5)  -- 破棄処理完了を待機
-        
-        -- 破棄後の空きスロット数を再確認
-        local newFreeSlots = GetFreeInventorySlots()
-        LogInfo("アイテム破棄後の空きスロット: " .. newFreeSlots .. "マス")
-        
-        if newFreeSlots <= 5 then
-            LogError("インベントリが満杯です。処理を停止します。手動でアイテムを整理してください。")
-            ChangePhase("ERROR", "インベントリ満杯")
-            return false
-        else
-            LogInfo("インベントリ整理完了 - 処理を継続します")
-            return true
+        for attempt = 1, maxAttempts do
+            LogInfo("discardall実行（" .. attempt .. "/" .. maxAttempts .. "回目）")
+            
+            SafeExecute(function()
+                yield("/discardall")
+            end, "Failed to discard items attempt " .. attempt)
+            
+            Wait(5)  -- 破棄処理完了を待機
+            
+            local newSlots = GetFreeInventorySlots()
+            LogInfo("破棄後の空きスロット: " .. newSlots .. "マス（前回: " .. currentSlots .. "マス）")
+            
+            -- スロット数に改善があるかチェック
+            if newSlots > currentSlots then
+                LogInfo("スロットが増加しました: +" .. (newSlots - currentSlots) .. "マス")
+                currentSlots = newSlots
+                
+                -- 十分な空きができたら終了
+                if currentSlots >= 10 then
+                    LogInfo("十分な空きスロット（" .. currentSlots .. "マス）を確保しました")
+                    break
+                end
+            else
+                LogWarn("スロット数に変化がありません（" .. attempt .. "回目）")
+            end
+            
+            -- 最後の試行で空きが不足している場合はエラー
+            if attempt == maxAttempts and currentSlots <= 1 then
+                LogError("インベントリが満杯です（" .. maxAttempts .. "回試行後：" .. currentSlots .. "マス）。処理を停止します。手動でアイテムを整理してください。")
+                ChangePhase("ERROR", "インベントリ満杯")
+                return false
+            end
         end
+        
+        LogInfo("インベントリ整理完了 - 最終空きスロット: " .. currentSlots .. "マス")
+        return true
     else
         return true
     end
@@ -1856,6 +2427,55 @@ local function IsInLimsa()
     return false
 end
 
+-- 共通ダンジョン判定関数（DetectCurrentStateと同じロジック）
+local function IsCurrentlyInTreasureDungeon()
+    local isInDuty = IsInDuty()
+    local currentZone = GetCurrentZoneID()
+    
+    -- トレジャーハント専用ダンジョンゾーンIDリスト
+    local treasureDungeonZones = {
+        712,  -- 既知のダンジョン
+        -- 必要に応じて追加
+    }
+    
+    -- ゾーンIDによる厳密なダンジョン判定
+    local isTreasureDungeon = false
+    for _, zoneId in ipairs(treasureDungeonZones) do
+        if currentZone == zoneId then
+            isTreasureDungeon = true
+            break
+        end
+    end
+    
+    -- フィールドゾーン（ダンジョンではない）の除外リスト
+    local fieldZones = {
+        1191, -- 誤検出されたゾーン
+        -- 他のフィールドゾーンも必要に応じて追加
+    }
+    
+    local isFieldZone = false
+    for _, zoneId in ipairs(fieldZones) do
+        if currentZone == zoneId then
+            isFieldZone = true
+            break
+        end
+    end
+    
+    -- ダンジョン判定ロジック
+    local isDungeonZone = false
+    if isFieldZone then
+        isDungeonZone = false
+    elseif isTreasureDungeon then
+        isDungeonZone = true
+    elseif isInDuty and currentZone ~= 0 then
+        isDungeonZone = true
+    else
+        isDungeonZone = false
+    end
+    
+    return isDungeonZone
+end
+
 -- フラグゾーンと現在ゾーンの比較
 local function IsInSameZoneAsFlag()
     local success, result = SafeExecute(function()
@@ -1890,14 +2510,10 @@ end
 local function DetectCurrentState()
     LogInfo("現在状態を自動検出中...")
     
-    -- 1. ダンジョン内チェック（最優先）
-    local isInDuty = IsInDuty()
-    LogInfo("ダンジョン状態チェック: " .. tostring(isInDuty))
-    
-    -- 強制ダンジョン検出（ゾーンID 712もダンジョンとして扱う）
+    -- 1. ダンジョン内チェック（共通関数使用）
+    local isDungeonZone = IsCurrentlyInTreasureDungeon()
     local currentZone = GetCurrentZoneID()
-    local isDungeonZone = isInDuty or currentZone == 712
-    LogInfo("強制ダンジョン検出 - ゾーンID: " .. tostring(currentZone) .. ", ダンジョン判定: " .. tostring(isDungeonZone))
+    LogInfo("最終ダンジョン判定: " .. tostring(isDungeonZone) .. " (ゾーンID: " .. tostring(currentZone) .. ")")
     
     if isDungeonZone then
         LogInfo("*** ダンジョン内にいることを検出 - ダンジョンフェーズから開始 ***")
@@ -1931,7 +2547,7 @@ end
 
 -- 初期化フェーズ
 local function ExecuteInitPhase()
-    LogInfo("トレジャーハント自動化 v1.6.0 を開始します")
+    LogInfo("トレジャーハント自動化 v2.5.4 を開始します (IPC API安定版 - 移動システム復元)")
     LogInfo("設定: " .. CONFIG.MAP_TYPE .. " 地図")
     
     if not CheckPrerequisites() then
@@ -1941,6 +2557,11 @@ local function ExecuteInitPhase()
     
     -- 食事効果チェック・使用
     CheckAndUseFoodItem()
+    
+    -- 地図タイプ別ジョブ変更
+    if not ChangeJobForMapType() then
+        LogWarn("ジョブ変更に失敗しましたが処理を継続します")
+    end
     
     -- インベントリ管理チェック
     if not CheckAndManageInventory() then
@@ -2109,7 +2730,7 @@ local function ExecuteMapPurchasePhase()
         -- 距離が遠い場合は移動
         if distance > 3.0 and IsVNavReady() then
             LogInfo("マーケットボードに近づいています...")
-            yield("/vnav movetarget")
+            VNavMoveToTarget(false) -- v2.4.0新API: 地上移動
             Wait(3)
             
             local moveTimeout = 15
@@ -2117,7 +2738,7 @@ local function ExecuteMapPurchasePhase()
             while GetDistanceToTarget() > 3.0 and not IsTimeout(moveStartTime, moveTimeout) do
                 Wait(1)
             end
-            yield("/vnav stop")
+            VNavStop() -- v2.4.0新API
         end
         
         -- マーケットボードとインタラクト
@@ -2381,19 +3002,11 @@ local function ExecuteMovementPhase()
                             shouldFly = false
                         end
                         
-                        -- Y座標をフラッグから取得
-                        flagPos.Y = (Instances.Map.Flag.Vector3 and Instances.Map.Flag.Vector3.Y) or 0
-                        -- IPC.vnavmesh.PathfindAndMoveToをyieldコマンドに置換（SEHException回避）
-                        if flagPos.Y ~= 0 then
-                            yield("/vnav flyto " .. flagPos.X .. " " .. flagPos.Y .. " " .. flagPos.Z)
-                        else
-                            yield("/vnav flyflag")
-                        end
-                        return true
+                        -- v2.4.0新API: VNavMoveToFlag使用
+                        return VNavMoveToFlag(true) -- 強制飛行
                     else
-                        -- フォールバック: コマンド実行
-                        yield("/vnav flyflag")
-                        return true
+                        -- フォールバック: VNavMoveToFlag使用
+                        return VNavMoveToFlag(true)
                     end
                 end, "Failed to start vnav movement")
                 
@@ -2405,8 +3018,8 @@ local function ExecuteMovementPhase()
                     return
                 end
             else
-                LogWarn("フラグ座標の取得に失敗しました - コマンドフォールバック")
-                yield("/vnav flyflag")
+                LogWarn("フラグ座標の取得に失敗しました - VNavMoveToFlagフォールバック")
+                VNavMoveToFlag(true)
                 movementStarted = true
                 Wait(2)
             end
@@ -2470,9 +3083,9 @@ local function ExecuteMovementPhase()
                     StopVNav()
                     Wait(1)
                     
-                    -- ターゲットに向かって飛行移動
-                    LogInfo("ドマ反乱軍の門兵にflytargetで飛行接近中...")
-                    yield("/vnav flytarget")
+                    -- ターゲットに向かって飛行移動（v2.4.0新API）
+                    LogInfo("ドマ反乱軍の門兵にVNavMoveToTargetで飛行接近中...")
+                    VNavMoveToTarget(true) -- 強制飛行
                     Wait(2)
                     
                     -- 移動完了まで待機
@@ -2536,21 +3149,16 @@ local function ExecuteMovementPhase()
                     end
                     
                     local moveSuccess = SafeExecute(function()
-                        if not CONFIG.DISABLE_IPC_VNAV and IPC and IPC.vnavmesh and IPC.vnavmesh.PathfindAndMoveTo then
+                        if false then  -- 従来コマンド使用に統一
                             -- パス計算中・移動中チェック：動作中なら実行をスキップ
                             if IsVNavMoving() then
                                 return true  -- スキップするが成功として扱う
                             end
                             
-                            -- マウント状態に応じたfly設定
-                            local shouldFly = IsPlayerMounted() and CanFly()
-                            -- Y座標をフラッグから取得
-                            flagPos.Y = (Instances.Map.Flag.Vector3 and Instances.Map.Flag.Vector3.Y) or 0
-                            yield("/vnav flyflag")
-                            return true
+                            -- v2.4.0新API使用
+                            return VNavMoveToFlag()
                         else
-                            yield("/vnav flyflag")
-                            return true
+                            return VNavMoveToFlag()
                         end
                     end, "Failed to restart vnav movement")
                     
@@ -2572,7 +3180,7 @@ local function ExecuteMovementPhase()
                         end
                     end
                     
-                    yield("/vnav flyflag")
+                    VNavMoveToFlag(true) -- v2.4.0新API: 強制飛行
                 end
                 
                 return  -- 処理完了後、移動フェーズを継続
@@ -2647,20 +3255,20 @@ local function ExecuteMovementPhase()
                     LogInfo("追加移動先座標: X=" .. string.format("%.2f", flagPos.X) .. ", Y=" .. string.format("%.2f", flagPos.Y) .. ", Z=" .. string.format("%.2f", flagPos.Z))
                     
                     local moveSuccess = SafeExecute(function()
-                        if not CONFIG.DISABLE_IPC_VNAV and IPC and IPC.vnavmesh and IPC.vnavmesh.PathfindAndMoveTo then
+                        if false then  -- 従来コマンド使用に統一
                             if IsVNavMoving() then
                                 return true
                             end
                             
                             local shouldFly = IsPlayerMounted() and CanFly()
                             SafeExecute(function()
-                                yield("/vnav flyflag")
+                                VNavMoveToFlag(true) -- v2.4.0新API: 強制飛行
                             end, "IPC vnavmesh PathfindAndMoveTo failed", 0)
                             return true
                         else
                             -- フォールバック: vnavmeshコマンド使用も安全化
                             SafeExecute(function()
-                                yield("/vnav flyflag")
+                                VNavMoveToFlag(true) -- v2.4.0新API: 強制飛行
                             end, "vnavmesh flyflag command failed", 0)
                             return true
                         end
@@ -2675,8 +3283,8 @@ local function ExecuteMovementPhase()
                 else
                     LogWarn("フラグ座標取得失敗 - コマンドで追加移動")
                     SafeExecute(function()
-                        yield("/vnav flyflag")
-                    end, "Fallback vnavmesh flyflag command failed", 0)
+                        VNavMoveToFlag(true) -- v2.4.0新API使用
+                    end, "Fallback VNavMoveToFlag failed", 0)
                     return
                 end
             else
@@ -2728,19 +3336,19 @@ local function ExecuteMovementPhase()
                     LogInfo("緊急再移動先座標: X=" .. string.format("%.2f", flagPos.X) .. ", Y=" .. string.format("%.2f", flagPos.Y) .. ", Z=" .. string.format("%.2f", flagPos.Z))
                     
                     local moveSuccess = SafeExecute(function()
-                        if not CONFIG.DISABLE_IPC_VNAV and IPC and IPC.vnavmesh and IPC.vnavmesh.PathfindAndMoveTo then
+                        if false then  -- 従来コマンド使用に統一
                             -- パス計算中・移動中チェック：動作中なら実行をスキップ
                             if IsVNavMoving() then
                                 return true  -- スキップするが成功として扱う
                             end
                             
                             SafeExecute(function()
-                                yield("/vnav flyflag")
-                            end, "IPC vnavmesh PathfindAndMoveTo restart failed", 0)
+                                VNavMoveToFlag(true) -- v2.4.0新API使用
+                            end, "VNavMoveToFlag restart failed", 0)
                             return true
                         else
                             SafeExecute(function()
-                                yield("/vnav flyflag")
+                                VNavMoveToFlag(true) -- v2.4.0新API: 強制飛行
                             end, "vnavmesh flyflag restart failed", 0)
                             return true
                         end
@@ -2925,23 +3533,75 @@ local function ExecuteMovementPhase()
     end
 end
 
--- 転送魔紋検出関数
+-- 転送魔紋検出・インタラクト関数（強化版）
 local function CheckForTransferPortal()
     local portalTargets = {"転送魔紋", "魔紋", "転送装置", "転送陣"}
     
     for _, targetName in ipairs(portalTargets) do
         yield("/target " .. targetName)
-        Wait(0.5)
+        Wait(1)
         
         if HasTarget() then
-            LogInfo("転送魔紋発見: " .. targetName)
-            yield("/interact")
-            Wait(3)
+            -- 実際のターゲット名を確認
+            local actualTargetName = GetTargetName()
+            LogDebug("転送魔紋検索: " .. targetName .. " → ターゲット: " .. tostring(actualTargetName))
             
-            -- ダンジョンに転送されたかチェック
-            if IsInDuty() then
-                LogInfo("転送魔紋経由でダンジョンに転送されました")
-                return true
+            if actualTargetName and string.find(actualTargetName, targetName) then
+                LogInfo("転送魔紋発見: " .. targetName .. " (実際: " .. actualTargetName .. ")")
+            
+            -- インタラクト前の準備
+            -- 1. BMRaiを無効化
+            yield("/bmrai off")
+            Wait(0.5)
+            
+            -- 2. マウントから降車
+            if IsPlayerMounted() then
+                LogInfo("転送魔紋インタラクト前にマウントから降車")
+                yield("/mount")
+                Wait(2)
+            end
+            
+            -- 3. 距離チェックと移動
+            local distance = GetDistanceToTarget()
+            if distance > 5.0 then
+                LogInfo("転送魔紋に接近中... (距離: " .. string.format("%.2f", distance) .. "yalm)")
+                yield("/automove on")
+                
+                -- 接近タイムアウト（10秒）
+                local moveTimeout = 10
+                local moveStart = os.clock()
+                
+                while GetDistanceToTarget() > 5.0 and os.clock() - moveStart < moveTimeout do
+                    Wait(0.5)
+                end
+                
+                yield("/automove off")
+                LogInfo("転送魔紋に接近完了 (距離: " .. string.format("%.2f", GetDistanceToTarget()) .. "yalm)")
+            end
+            
+            -- 4. 転送魔紋を再ターゲットしてインタラクト
+            LogInfo("転送魔紋とインタラクト実行: " .. targetName)
+            yield("/target " .. targetName)
+            Wait(0.5)
+            
+            if HasTarget() then
+                yield("/interact")
+                LogInfo("転送魔紋インタラクト完了")
+                Wait(5) -- 転送待機時間を延長
+                
+                -- ダンジョンに転送されたかチェック
+                if IsInDuty() then
+                    LogInfo("転送魔紋経由でダンジョンに転送されました")
+                    return true
+                else
+                    LogWarn("転送魔紋インタラクト後もダンジョンに移行していません - 再試行")
+                    -- 再試行のため次のターゲットに進む
+                end
+            else
+                LogWarn("転送魔紋の再ターゲットに失敗: " .. targetName)
+            end
+            else
+                LogDebug("ターゲット名が一致しません: " .. tostring(actualTargetName) .. " ≠ " .. targetName)
             end
         end
     end
@@ -3026,15 +3686,10 @@ local function CheckForTreasureChest()
                 end, "Failed to get target position")
                 
                 if success and targetPos then
-                    -- 飛行でターゲットに移動
+                    -- v2.4.0新API: VNavMoveToTargetで移動
                     SafeExecute(function()
-                        if not CONFIG.DISABLE_IPC_VNAV and IPC and IPC.vnavmesh and IPC.vnavmesh.PathfindAndMoveTo then
-                            yield("/vnav flytarget")  -- fly=true
-                        else
-                            -- フォールバック: コマンド実行
-                            yield("/vnav movetarget")
-                        end
-                    end, "Failed to start vnav movement to treasure chest")
+                        return VNavMoveToTarget(true) -- 強制飛行
+                    end, "Failed to start VNavMoveToTarget to treasure chest")
                     
                     -- 距離が近くなるまで待機（タイムアウト付き）
                     local moveTimeout = 30
@@ -3049,12 +3704,12 @@ local function CheckForTreasureChest()
                     StopVNav()
                 else
                     LogWarn("ターゲット座標の取得に失敗 - コマンドフォールバック")
-                    yield("/vnav movetarget")
+                    VNavMoveToTarget(false) -- v2.4.0新API: 地上移動
                     Wait(2)
                 end
             else
                 LogWarn("vnavmeshが準備できていません")
-                yield("/vnav movetarget")
+                VNavMoveToTarget(false) -- v2.4.0新API: 地上移動
                 Wait(2)
             end
             
@@ -3084,11 +3739,11 @@ local function CheckForTreasureChest()
                 if success and targetPos then
                     -- 最終接近でも飛行を使用
                     SafeExecute(function()
-                        if not CONFIG.DISABLE_IPC_VNAV and IPC and IPC.vnavmesh and IPC.vnavmesh.PathfindAndMoveTo then
-                            yield("/vnav flytarget")  -- fly=true
+                        if false then  -- 従来コマンド使用に統一
+                            VNavMoveToTarget(true) -- v2.4.0新API: 飛行移動  -- fly=true
                         else
                             -- フォールバック: コマンド実行
-                            yield("/vnav movetarget")
+                            VNavMoveToTarget(false) -- v2.4.0新API: 地上移動
                         end
                     end, "Failed to start final approach to treasure chest")
                     
@@ -3105,12 +3760,12 @@ local function CheckForTreasureChest()
                     StopVNav()
                 else
                     LogWarn("最終アプローチでターゲット座標の取得に失敗")
-                    yield("/vnav movetarget")
+                    VNavMoveToTarget(false) -- v2.4.0新API: 地上移動
                     Wait(1)
                 end
             else
                 LogWarn("vnavmeshが利用できません - コマンドフォールバック")
-                yield("/vnav movetarget")
+                VNavMoveToTarget(false) -- v2.4.0新API: 地上移動
                 Wait(1)
             end
             
@@ -3188,201 +3843,112 @@ end
 
 -- 戦闘フェーズ
 local function ExecuteCombatPhase()
+    -- デバッグダンプは一時無効化（ログが埋まるため）
+    -- if CONFIG.DEBUG.ENABLED then
+    --     LogInfo("=== 戦闘フェーズ開始 - Svc.Condition状態確認 ===")
+    --     DumpAllSvcConditions()
+    -- end
+    
     local isInCombat = IsInCombat()
     
+    -- 戦闘中の処理
     if isInCombat then
-        -- 戦闘開始時のみログ出力（重複防止）
         if not combatPluginsEnabled then
             LogInfo("戦闘開始 - 自動戦闘プラグイン有効化中")
-            
-            -- 新しい戦闘プラグイン検出・有効化システム
-            local hasAnyPlugin = EnableCombatPlugins()
-            
-            -- 戦闘プラグインが一つも検出されない場合の処理
-            if not hasAnyPlugin then
-                LogWarn("自動戦闘プラグインが検出されません。手動戦闘または戦闘タイムアウトまで待機")
-                LogWarn("対応プラグイン: RotationSolverReborn/RSR, BossModReborn/BossMod/BMR")
-            else
-                LogInfo("自動戦闘プラグイン有効化完了")
-            end
+            EnableCombatPlugins()
+            LogInfo("自動戦闘プラグイン有効化完了")
         end
-        
-        -- 戦闘中はフェーズを維持（戦闘終了は次のループで検出）
-        return
+        return -- 戦闘中は待機
     else
-        -- 戦闘していない場合の処理
+        -- 戦闘終了後の処理（v2.4.0強化版）
+        -- 追加確認: 周辺敵の存在チェック
+        if CheckForNearbyEnemies() then
+            LogWarn("戦闘終了判定後に周辺敵を検出 - 戦闘継続")
+            if not combatPluginsEnabled then
+                EnableCombatPlugins()
+                LogInfo("周辺敵検出により戦闘プラグイン再有効化")
+            end
+            return -- 戦闘継続
+        end
+        
         if combatPluginsEnabled then
-            LogInfo("戦闘終了 - 自動戦闘プラグイン無効化")
-            -- 自動戦闘を停止（もし有効だった場合）
+            LogInfo("戦闘終了確認 - 自動戦闘プラグイン無効化")
             DisableCombatPlugins()
+            Wait(2) -- 状態安定化待機
         end
         
-        -- 1. 最初に発掘失敗チェック（「この周囲に宝箱はないようだ……」対応）
-        local excavationFailed = false
-        
-        -- 発掘失敗メッセージの検出（実際のゲームではチャットログ解析が必要）
-        -- ここでは簡易版として、宝箱がターゲットできない場合に発掘失敗とみなす
-        yield("/target 宝箱")
-        Wait(1)
-        
-        if not HasTarget() then
-            LogWarn("宝箱がターゲットできません - 発掘失敗の可能性")
-            excavationFailed = true
+        -- ダンジョン検出（GetCharacterCondition(34)のみ）
+        if IsInDuty() then
+            ChangePhase("DUNGEON", "ダンジョンに転送されました")
+            return
         end
         
-        if excavationFailed then
+        -- 宝箱インタラクト処理（初回のみ）
+        if not treasureChestInteracted then
+            if CheckForTreasureChest() then
+                LogInfo("宝箱インタラクト完了、戦闘開始")
+                return
+            end
+            
+            -- 宝箱が見つからない場合は発掘失敗
             LogInfo("発掘失敗を検出 - 次の地図に移行します")
             ChangePhase("COMPLETE", "発掘失敗、次の地図処理")
             return
         end
         
-        -- 2. 宝箱が見つかった場合のインタラクト処理
-        if not treasureChestInteracted and CheckForTreasureChest() then
-            LogInfo("宝箱インタラクト完了、戦闘開始")
-            return -- 戦闘開始したので戻る
+        -- 宝箱インタラクト済みの場合：戦闘終了後の処理
+        
+        -- 戦闘後の簡単な宝箱回収
+        yield("/target 宝箱")
+        Wait(1)
+        if HasTarget() and GetDistanceToTarget() <= 10 then
+            yield("/interact")
+            Wait(2)
+            LogInfo("戦闘後の宝箱回収完了")
+            
+            -- 宝箱インタラクト後のターゲット解除
+            yield("/target clear")
+            Wait(0.5)
+            LogDebug("宝箱回収後のターゲット解除完了")
         end
         
-        -- 3. 戦闘完了後の宝箱インタラクト（戦闘後の追加処理）
-        if treasureChestInteracted then
-            -- 非戦闘状態が3秒続いているかチェック
-            local nonCombatDuration = 3
-            local nonCombatStart = os.clock()
-            local combatCheckPassed = false
-            
-            while os.clock() - nonCombatStart < nonCombatDuration do
-                if IsInCombat() then
-                    -- 戦闘中なら最初からやり直し
-                    nonCombatStart = os.clock()
-                    LogDebug("戦闘中のため非戦闘状態待機をリセット")
-                end
-                Wait(0.5)
-            end
-            
-            -- 3秒間非戦闘状態が続いた場合のみ処理開始
-            if not IsInCombat() then
-                LogInfo("戦闘完了後の宝箱再チェック（非戦闘状態3秒確認済み）...")
-                combatCheckPassed = true
-            else
-                LogDebug("戦闘中のため宝箱処理をスキップ")
-                return -- 戦闘中なので処理を中断
-            end
-            
-            if combatCheckPassed then
-                -- 戦闘後の回収ターゲット（ダンジョン状態に応じて調整）
-                local isInDungeon = IsInDuty()
-                local postCombatTargets = {"宝箱"}
-            
-            if isInDungeon then
-                -- ダンジョン内では皮袋も対象に追加
-                table.insert(postCombatTargets, "皮袋")
-            else
-            end
-            
-            for _, targetName in ipairs(postCombatTargets) do
-                yield("/target " .. targetName)
-                Wait(1)
-                
-                if HasTarget() then
-                    LogInfo("戦闘後の" .. targetName .. "発見 - 移動してインタラクト")
-                    
-                    -- 現在の距離をチェック
-                    local currentDistance = GetDistanceToTarget()
-                    
-                    -- 距離計算が失敗した場合（999yalm）は既にインタラクト済みとみなす
-                    if currentDistance >= 999 then
-                        LogWarn("戦闘後の" .. targetName .. "は距離計算失敗 - 既にインタラクト済みとみなす")
-                        goto next_target
-                    end
-                    
-                    -- 距離が3yalm以上の場合のみ移動（マウント召喚後）
-                    if currentDistance > 3.0 then
-                        -- 宝箱移動前にマウント召喚
-                        if SummonPowerLoader() then
-                            LogInfo("宝箱移動のためマウント召喚完了")
-                        end
-                        
-                        if IsVNavReady() then
-                            LogInfo("マウント乗車状態で宝箱へ飛行移動開始")
-                            yield("/vnav flytarget")
-                            Wait(1)
-                            
-                            -- 距離が3yalm以下になるまで飛行移動（タイムアウト付き）
-                            local moveTimeout = 30  -- 飛行移動のため30秒に延長
-                            local moveStartTime = os.clock()
-                            
-                            while GetDistanceToTarget() > 3.0 and not IsTimeout(moveStartTime, moveTimeout) do
-                                local distance = GetDistanceToTarget()
-                                Wait(1)
-                            end
-                            
-                            -- 移動停止
-                            StopVNav()
-                            
-                            local finalDistance = GetDistanceToTarget()
-                            if finalDistance <= 3.0 then
-                                LogInfo(targetName .. "付近に到着 (距離: " .. string.format("%.2f", finalDistance) .. "yalm)")
-                            else
-                                LogWarn(targetName .. "への移動タイムアウト (距離: " .. string.format("%.2f", finalDistance) .. "yalm)")
-                            end
-                        else
-                            LogWarn("vnavmeshが利用できません - 手動で" .. targetName .. "に近づいてください")
-                            Wait(3)
-                        end
-                    else
-                        LogInfo(targetName .. "は既に範囲内です (距離: " .. string.format("%.2f", currentDistance) .. "yalm)")
-                    end
-                    
-                    -- インタラクト前にマウントから降りる
-                    if IsPlayerMounted() then
-                        LogInfo("戦闘後" .. targetName .. "インタラクト前にマウントから降車")
-                        if not DismountSafely(5) then
-                            LogWarn("戦闘後" .. targetName .. "インタラクト前のマウント降車に失敗しました")
-                        end
-                    end
-                    
-                    -- インタラクト前にBMRaiを無効化
-                    local hasBMR, bmrName = HasCombatPlugin("bmr")
-                    if hasBMR then
-                        yield("/bmrai off")
-                        LogInfo("戦闘後インタラクト前にBMRai無効化 (プラグイン: " .. tostring(bmrName) .. ")")
-                        Wait(0.5)
-                    else
-                        yield("/bmrai off")
-                        LogDebug("BMRプラグイン未検出 - 念のため戦闘後インタラクトBMRaiオフコマンド実行")
-                        Wait(0.5)
-                    end
-                    
-                    -- インタラクト前にターゲットを確実に指定
-                    LogInfo("戦闘後の" .. targetName .. "を再ターゲットしてインタラクト実行")
-                    yield("/target " .. targetName)
-                    Wait(0.5)
-                    
-                    if HasTarget() then
-                        yield("/interact")
-                        LogInfo("戦闘後の" .. targetName .. "とインタラクト実行")
-                    else
-                        LogWarn("戦闘後の" .. targetName .. "のターゲットに失敗しました")
-                    end
-                    Wait(2)
-                end
-                
-                ::next_target::
-            end
-            end -- combatCheckPassed のif文を閉じる
-        end
-        
-        -- 4. 転送魔紋をチェック
+        -- 転送魔紋チェック（戦闘後に発生する可能性）
         if CheckForTransferPortal() then
-            ChangePhase("DUNGEON", "転送魔紋でダンジョン転送")
+            LogInfo("戦闘後に転送魔紋を検出しました")
+            return -- ダンジョンフェーズに自動移行
+        end
+        
+        -- 戦闘後タイムアウト制御（転送魔紋が出現しない場合の強制完了）
+        if combatStartTime > 0 then
+            local combatElapsedTime = os.clock() - combatStartTime
+            if combatElapsedTime > 60 then -- 1分間転送魔紋を待機
+                LogWarn(string.format("転送魔紋待機タイムアウト（%.1f秒経過） - 戦闘完了として処理", combatElapsedTime))
+                ChangePhase("COMPLETE", "転送魔紋タイムアウト、戦闘完了")
+                return
+            end
+        else
+            -- combatStartTimeが設定されていない場合のフォールバック
+            LogWarn("戦闘開始時刻が未記録 - 戦闘完了として処理")
+            ChangePhase("COMPLETE", "戦闘開始時刻未記録、戦闘完了")
             return
         end
         
-        -- 5. 直接ダンジョン検出
-        if IsInDuty() then
-            ChangePhase("DUNGEON", "ダンジョンに転送されました")
+        -- 完了処理（転送魔紋が見つからない場合）
+        if combatStartTime > 0 then
+            local combatElapsedTime = os.clock() - combatStartTime
+            LogDebug(string.format("転送魔紋未検出 - 継続待機中...（経過時間: %.1f秒/60秒）", combatElapsedTime))
         else
-            ChangePhase("COMPLETE", "戦闘なし、次の地図処理")
+            LogDebug("転送魔紋未検出 - 継続待機中...")
         end
+        
+        -- 戦闘フェーズ長期化防止：30秒以上経過した場合は強制完了
+        local currentTime = os.clock()
+        if phaseStartTime > 0 and (currentTime - phaseStartTime) > 30 then
+            LogWarn(string.format("戦闘フェーズ長期化検出（%.1f秒経過） - 強制完了", currentTime - phaseStartTime))
+            ChangePhase("COMPLETE", "戦闘フェーズタイムアウト")
+            return
+        end
+        return -- 継続して転送魔紋を待機
     end
 end
 
@@ -3475,8 +4041,31 @@ local function AutoMoveForward()
                     Wait(1)
                     return targetName
                 else
-                    LogInfo("" .. targetName .. "発見（距離: " .. string.format("%.1f", distance) .. "）- ターゲット可能距離まで前進中")
-                    -- ターゲット可能距離ではないので前進継続
+                    LogInfo("" .. targetName .. "発見（距離: " .. string.format("%.1f", distance) .. "）- vnavでターゲット移動中")
+                    
+                    -- vnavmeshを使ってターゲットに移動
+                    yield("/automove off")
+                    Wait(0.5)
+                    VNavMoveToTarget(false) -- v2.4.0新API: 地上移動
+                    Wait(1)
+                    
+                    -- 移動開始確認のため少し待機
+                    local moveStartTime = os.clock()
+                    while os.clock() - moveStartTime < 10 and HasTarget() do
+                        local currentDistance = GetDistanceToTarget()
+                        if currentDistance <= targetDistance then
+                            VNavStop() -- v2.4.0新API
+                            LogInfo("vnav移動完了: " .. targetName .. " (最終距離: " .. string.format("%.1f", currentDistance) .. ")")
+                            Wait(1)
+                            return targetName
+                        end
+                        Wait(0.5)
+                    end
+                    
+                    -- vnavでの移動が完了しない場合は従来の前進継続
+                    VNavStop() -- v2.4.0新API
+                    LogInfo("vnav移動タイムアウト - automove前進に切り替え")
+                    yield("/automove on")
                 end
             end
         end
@@ -3505,7 +4094,7 @@ local function CheckForTreasures()
             -- 距離が3yalm以上の場合は移動
             if distance > 3.0 and IsVNavReady() then
                 LogInfo(targetName .. "に近づいています...")
-                yield("/vnav movetarget")
+                VNavMoveToTarget(false) -- v2.4.0新API: 地上移動
                 Wait(1)
                 
                 -- 移動完了待機
@@ -3564,7 +4153,7 @@ local function CheckForNextFloor()
             -- 距離が遠い場合は近づく
             if distance > 3.0 and IsVNavReady() then
                 LogInfo("扉に近づいています...")
-                yield("/vnav movetarget")
+                VNavMoveToTarget(false) -- v2.4.0新API: 地上移動
                 Wait(2)
                 
                 -- 移動完了待機
@@ -3604,7 +4193,15 @@ local function CheckForExit()
     return false
 end
 
+-- ボス撃破フラグ（無限ループ防止）
+local bossDefeated = false
+
 local function CheckForBoss()
+    -- 既にボスを撃破済みの場合はスキップ
+    if bossDefeated then
+        return false
+    end
+    
     local bossTargets = {"ブルアポリオン", "ゴールデン・モルター"}
     
     for _, bossName in ipairs(bossTargets) do
@@ -3613,6 +4210,15 @@ local function CheckForBoss()
         
         if HasTarget() then
             LogInfo("最終層ボス発見: " .. bossName)
+            
+            -- インベントリチェック（ボス戦前）
+            local inventoryResult = CheckAndManageInventory()
+            if not inventoryResult then
+                LogError("インベントリ満杯でボス戦を開始できません")
+                ChangePhase("ERROR", "インベントリ満杯")
+                return false
+            end
+            
             yield("/interact")  -- ボスには自分から攻撃する必要がある
             Wait(2)
             
@@ -3625,6 +4231,7 @@ local function CheckForBoss()
             
             if not IsInCombat() then
                 LogInfo("ボス戦闘完了")
+                bossDefeated = true  -- ボス撃破フラグを設定
                 return true
             else
                 LogError("ボス戦闘タイムアウト")
@@ -3667,13 +4274,12 @@ local function CheckAndInteractPriorityTargets(currentFloor, maxFloors)
         }
     }
     
-    -- 最終層の場合は脱出地点も追加
-    if currentFloor >= maxFloors then
-        table.insert(targets, {
-            names = {"脱出地点", "退出", "出口", "転送魔法陣"},
-            description = "脱出地点"
-        })
-    end
+    -- 脱出地点を常に追加（最終層検出問題対策）
+    -- 宝箱・皮袋がない場合に脱出地点をターゲット
+    table.insert(targets, {
+        names = {"脱出地点", "退出", "出口", "転送魔法陣", "帰還魔法陣"},
+        description = "脱出地点"
+    })
     
     -- 優先順位に従ってターゲット検索・インタラクト
     for priorityIndex, targetGroup in ipairs(targets) do
@@ -3704,7 +4310,7 @@ local function CheckAndInteractPriorityTargets(currentFloor, maxFloors)
                     -- 距離が3yalm以上の場合は移動
                     if distance > 3.0 and IsVNavReady() then
                         LogInfo(actualTargetName .. "に接近中...")
-                        yield("/vnav movetarget")
+                        VNavMoveToTarget(false) -- v2.4.0新API: 地上移動
                         Wait(1)
                         
                         -- 移動完了待機（タイムアウト付き）
@@ -3802,9 +4408,9 @@ end
 local function ExecuteDungeonPhase()
     LogInfo("ダンジョン探索を開始します")
     
-    -- ダンジョン脱出チェック（最優先）
-    if not IsInDuty() then
-        LogInfo("ダンジョンから脱出しました - 完了フェーズに移行")
+    -- ダンジョン脱出チェック（最優先）- 共通関数使用
+    if not IsCurrentlyInTreasureDungeon() then
+        LogInfo("ダンジョン外にいることを検出 - 完了フェーズに移行")
         ChangePhase("COMPLETE", "ダンジョン脱出完了")
         return
     end
@@ -3860,7 +4466,7 @@ local function ExecuteDungeonPhase()
                 local distance = GetDistanceToTarget()
                 if distance > 3.0 then
                     LogInfo("召喚魔法陣に接近中... (現在距離: " .. string.format("%.2f", distance) .. "yalm)")
-                    yield("/vnav movetarget")
+                    VNavMoveToTarget(false) -- v2.4.0新API: 地上移動
                     
                     -- 接近完了まで待機
                     local approachStart = os.clock()
@@ -3884,17 +4490,25 @@ local function ExecuteDungeonPhase()
         end
     end
     
-    -- 自動戦闘有効化（利用可能なプラグインのみ）
-    EnableCombatPlugins()
-    LogInfo("ダンジョンで自動戦闘プラグイン有効化完了")
+    -- 戦闘プラグインは戦闘時のみ有効化するため、ここでは無効化状態を確保
+    if combatPluginsEnabled then
+        LogInfo("ダンジョン開始前に戦闘プラグインを無効化")
+        DisableCombatPlugins()
+    end
     
     local dungeonStartTime = os.clock()
-    local currentFloor = 1
-    local maxFloors = 5
+    
+    -- _TodoListから動的に階層情報を取得
+    local currentFloor, maxFloors = GetCurrentFloorFromTodoList()
+    LogInfo("_TodoListから取得した初期階層情報: " .. currentFloor .. "/" .. maxFloors)
+    
     local combatStartTime = nil
     local combatTimeout = 120  -- 2分の戦闘タイムアウト
     
     while IsInDuty() and not IsTimeout(dungeonStartTime, CONFIG.TIMEOUTS.DUNGEON) do
+        -- プレイヤー状態変数をループの先頭で宣言（gotoスコープ対策）
+        local playerAvailable, playerMoving
+        
         LogInfo("現在の階層: " .. currentFloor .. "/" .. maxFloors)
         
         -- TreasureHighLowミニゲーム処理
@@ -3915,82 +4529,150 @@ local function ExecuteDungeonPhase()
         
         -- 戦闘中は待機（タイムアウト付き）
         if IsInCombat() then
-            -- 戦闘開始時間を記録
+            -- 戦闘開始時の処理
             if combatStartTime == nil then
                 combatStartTime = os.clock()
-                
-                -- 戦闘開始時に自動戦闘を確実に有効化
+                LogInfo("ダンジョン戦闘開始を検出")
+            end
+            
+            -- 戦闘プラグインが無効化されていれば有効化
+            if not combatPluginsEnabled then
+                LogInfo("戦闘中 - 自動戦闘プラグイン有効化")
                 EnableCombatPlugins()
-                LogInfo("ダンジョン戦闘開始 - 自動戦闘プラグイン有効化完了")
-                
-                -- 追加: BMRAIを明示的に有効化
-                local hasBMR, bmrName = HasCombatPlugin("bmr")
-                if hasBMR then
-                    yield("/bmrai on")
-                    LogInfo("ダンジョン戦闘: BMRAIを明示的に有効化 (プラグイン: " .. tostring(bmrName) .. ")")
-                    Wait(0.5)
-                else
-                    yield("/bmrai on")
-                    LogInfo("ダンジョン戦闘: BMRAIを明示的に有効化 (フォールバック)")
-                    Wait(0.5)
-                end
             end
             
             -- 戦闘タイムアウトチェック
             if IsTimeout(combatStartTime, combatTimeout) then
                 LogWarn("戦闘タイムアウト (" .. combatTimeout .. "秒) - 戦闘終了とみなして継続")
                 combatStartTime = nil
+                -- タイムアウト時は戦闘プラグインを無効化
+                if combatPluginsEnabled then
+                    LogInfo("戦闘タイムアウト - 戦闘プラグイン無効化")
+                    DisableCombatPlugins()
+                end
                 goto continue
             end
             
             Wait(2)
-            goto continue
         else
-            -- 戦闘していない場合は戦闘開始時間をリセット
+            -- 戦闘終了後の処理
             if combatStartTime ~= nil then
-                combatStartTime = nil
+                LogInfo("戦闘終了を検出")
+                combatStartTime = nil  -- リセット
+                
+                -- 戦闘終了時に戦闘プラグインを無効化
+                if combatPluginsEnabled then
+                    LogInfo("戦闘終了 - 戦闘プラグイン無効化")
+                    DisableCombatPlugins()
+                    Wait(1)
+                end
             end
+            
+            -- 戦闘していない場合は戦闘プラグインが有効なら無効化
+            if combatPluginsEnabled then
+                LogInfo("非戦闘中 - 戦闘プラグイン無効化")
+                DisableCombatPlugins()
+            end
+            goto continue
         end
         
         -- プレイヤーが操作可能で移動していない場合の処理
-        if IsPlayerAvailable() and not IsPlayerMoving() then
-            -- 最終層の場合はボスチェック
-            if currentFloor == maxFloors then
-                if CheckForBoss() then
-                    LogInfo("ボス撃破完了")
-                    goto continue
-                end
+        -- ローカル変数はループ先頭で宣言済み、ここで値を取得
+        playerAvailable = IsPlayerAvailable()
+        playerMoving = IsPlayerMoving()
+        LogDebug(string.format("プレイヤー状態チェック: Available=%s, Moving=%s", tostring(playerAvailable), tostring(playerMoving)))
+        
+        if playerAvailable and not playerMoving then
+            -- ボスチェック（全階層で実行）
+            if CheckForBoss() then
+                LogInfo("ボス撃破完了")
+                goto continue
             end
             
-            -- 優先順位に基づく統一ターゲットシステム
+            -- Priority-based unified target system
+            LogDebug("ターゲット検索システム呼び出し中...")
             local interacted, floorProgressed = CheckAndInteractPriorityTargets(currentFloor, maxFloors)
+            LogDebug(string.format("ターゲット検索結果: interacted=%s, floorProgressed=%s", tostring(interacted), tostring(floorProgressed)))
             
-            -- 階層進行チェック
+            -- Floor progression check
             if floorProgressed then
+                local oldFloor = currentFloor
                 currentFloor = currentFloor + 1
-                LogInfo("階層進行: " .. (currentFloor - 1) .. "/" .. maxFloors .. 
-                       " → " .. currentFloor .. "/" .. maxFloors)
                 
-                -- 最終層到達チェック
-                if currentFloor > maxFloors then
-                    LogInfo("最終層を超過 - ダンジョン完了とみなします")
-                    ChangePhase("COMPLETE", "全階層完了")
-                    return
+                -- Sync latest floor info from _ToDoList
+                local todoCurrentFloor, todoMaxFloors = GetCurrentFloorFromTodoList()
+                if todoCurrentFloor >= currentFloor then
+                    currentFloor = todoCurrentFloor
+                    maxFloors = todoMaxFloors
+                    LogInfo("階層進行: " .. oldFloor .. "/" .. maxFloors .. " → " .. currentFloor .. "/" .. maxFloors .. " (_ToDoList同期済み)")
+                else
+                    LogInfo("階層進行: " .. oldFloor .. "/" .. maxFloors .. " → " .. currentFloor .. "/" .. maxFloors .. " (ローカル推定)")
                 end
+                
+                -- Final floor check (continue even beyond 5F)
+                -- Continue dungeon exploration even when floor > 5
+                LogDebug("現在の階層: " .. currentFloor .. "/" .. maxFloors .. " (継続探索)")
             end
             
             if not interacted then
-                -- 何もターゲットできない場合は前進探索
-                local foundTarget = AutoMoveForward()
-                if foundTarget then
-                    if foundTarget == "dungeon_exit" then
-                        LogInfo("ダンジョン脱出を検出 - 完了フェーズに移行")
-                        ChangePhase("COMPLETE", "ダンジョン脱出完了")
-                        return
-                    else
-                        LogInfo("前進探索で発見: " .. foundTarget .. " - 次回ループで処理")
+                -- 宝箱・皮袋が見つからない場合、脱出地点を積極的に検索
+                LogInfo("宝箱・皮袋未発見 - 脱出地点を優先検索中...")
+                
+                local exitTargets = {"脱出地点", "退出", "出口", "転送魔法陣", "帰還魔法陣"}
+                local exitFound = false
+                
+                for _, exitName in ipairs(exitTargets) do
+                    yield("/target " .. exitName)
+                    Wait(0.5)
+                    if HasTarget() then
+                        local targetName = GetTargetName()
+                        local distance = GetDistanceToTarget()
+                        LogInfo("脱出地点発見: " .. targetName .. " (距離: " .. string.format("%.2f", distance) .. "yalm)")
+                        
+                        -- 距離が遠い場合は接近
+                        if distance > 3.0 and IsVNavReady() then
+                            LogInfo("脱出地点に接近中...")
+                            VNavMoveToTarget(false) -- v2.4.0新API: 地上移動
+                            Wait(2)
+                            
+                            -- 接近完了待機
+                            local approachTimeout = 10
+                            local approachStart = os.clock()
+                            while GetDistanceToTarget() > 3.0 and not IsTimeout(approachStart, approachTimeout) do
+                                Wait(0.5)
+                            end
+                            VNavStop() -- v2.4.0新API
+                        end
+                        
+                        -- 脱出地点インタラクト
+                        yield("/interact")
+                        Wait(2)
+                        LogInfo("脱出地点インタラクト実行 - ダンジョン脱出中")
+                        exitFound = true
+                        break
                     end
                 end
+                
+                if not exitFound then
+                    -- 脱出地点も見つからない場合は前進探索
+                    local foundTarget = AutoMoveForward()
+                    if foundTarget then
+                        if foundTarget == "dungeon_exit" then
+                            LogInfo("ダンジョン脱出を検出 - 完了フェーズに移行")
+                            ChangePhase("COMPLETE", "ダンジョン脱出完了")
+                            return
+                        else
+                            LogInfo("前進探索で発見: " .. foundTarget .. " - 次回ループで処理")
+                        end
+                    end
+                end
+            end
+        else
+            -- プレイヤーが操作不可能または移動中の場合
+            if not playerAvailable then
+                LogDebug("プレイヤーが操作不可能状態 - 待機中")
+            elseif playerMoving then
+                LogDebug("プレイヤー移動中 - 待機中")
             end
         end
         
@@ -4039,6 +4721,12 @@ local function ExecuteErrorPhase()
     LogInfo("エラー時自動戦闘プラグイン無効化完了")
     yield("/automove off")
     
+    -- エラー時安全帰還処理
+    LogInfo("エラー時安全帰還: /li innを実行中...")
+    yield("/li inn")
+    Wait(2)
+    LogInfo("安全帰還処理完了")
+    
     stopRequested = true
 end
 
@@ -4059,8 +4747,8 @@ local phaseExecutors = {
 
 -- メインループ（エラーハンドラー付き）
 local function SafeMainLoop()
-    LogInfo("==================== TREASURE HUNT AUTOMATION v1.7.0 開始 ====================")
-    LogInfo("【食事バフ自動再摂取機能搭載版】SHIFT+CONTROL+F9による食事バフ自動管理・戦闘中安全制御")
+    LogInfo("==================== TREASURE HUNT AUTOMATION v2.5.4 開始 (REVERT) ====================")
+    LogInfo("【yield vnav系コマンド完全移行版】安定した従来コマンド使用・壁衝突対策準備")
     LogInfo("==================== システム初期化中 ====================")
     
     -- スクリプト開始時に戦闘中の場合は自動戦闘を有効化し、戦闘終了まで待機
@@ -4120,12 +4808,23 @@ local function SafeMainLoop()
         -- イテレーション制限チェック
         if iteration >= maxIterations then
             LogWarn("最大イテレーション数に達しました")
+            -- 緊急安全帰還処理
+            LogInfo("最大イテレーション到達 - 緊急安全帰還を実行中...")
+            DisableCombatPlugins()
+            yield("/automove off")
+            yield("/li inn")
+            Wait(2)
+            LogInfo("緊急安全帰還処理完了")
             break
         end
         
         Wait(1)
     end
     
+    -- スクリプト終了時の安全帰還処理
+    LogInfo("スクリプト終了 - 安全帰還処理を実行中...")
+    yield("/li inn")
+    Wait(2)
     LogInfo("スクリプト終了")
 end
 
@@ -4149,6 +4848,9 @@ local function MainLoop()
             LogError("SEHException検出 - NLua/SomethingNeedDoingエンジンレベルエラー")
             LogError("エラー詳細: External component has thrown an exception")
             LogError("推奨対処: 1) SND再起動 2) Dalamudプラグイン再読み込み 3) FFXIV再起動")
+            -- SEHException時の緊急帰還
+            LogInfo("SEHException検出 - 緊急安全帰還を実行中...")
+            pcall(function() yield("/li inn") end)
         end
         
         -- lua_pcallkエラー特定対策
@@ -4156,12 +4858,18 @@ local function MainLoop()
             LogError("NLua CallDelegate/lua_pcallkエラー検出")
             LogError("原因: Luaスタック破損またはメモリアクセス違反")
             LogError("推奨対処: 即座にスクリプト停止・SND再起動")
+            -- Lua スタック破損時の緊急帰還
+            LogInfo("Luaスタック破損検出 - 緊急安全帰還を実行中...")
+            pcall(function() yield("/li inn") end)
         end
         
         -- NLuaMacroEngineエラー特定対策
         if string.find(errorStr, "NLuaMacroEngine") then
             LogError("NLuaMacroEngineエラー検出 - マクロエンジン内部エラー")
             LogError("推奨対処: SomethingNeedDoingプラグイン完全再起動")
+            -- マクロエンジンエラー時の緊急帰還
+            LogInfo("マクロエンジンエラー検出 - 緊急安全帰還を実行中...")
+            pcall(function() yield("/li inn") end)
         end
         
         LogError("スクリプト安全終了を実行します")
