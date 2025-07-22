@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-                      Treasure Hunt Automation v2.5.4
+                      Treasure Hunt Automation v2.4.0
 ================================================================================
 FFXIV トレジャーハント完全自動化スクリプト
 
@@ -24,34 +24,9 @@ Author: Claude + jinwktk
 Date: 2025-07-22
 
 変更履歴:
-v2.5.4 (2025-07-22):
-- yield vnav移行問題修正: IPC API方式に復元してシステム安定性を回復
-- vnavmesh動作不良対策: 従来の動作するIPC.vnavmesh.PathfindAndMoveTo方式を維持
-- 移動システム安定化: yield vnav系コマンドからIPC APIベースシステムに戻し正常動作確保
-
-v2.5.4 (2025-07-22):
-- gotoスコープエラー緊急修正: ローカル変数宣言をループ先頭に移動してスコープ問題解決
-- Luaスクリプト安定性向上: NLua.Exceptions.LuaScriptException根本対策
-
-v2.5.3 (2025-07-22):
-- 全階層ボスチェック対応: 最終層以外でもボス検出・撃破処理を実行
-- デバッグ情報強化: プレイヤー状態・ターゲット検索結果の詳細ログ追加
-- 無限ループ対策: プレイヤー操作不可能時の適切な待機処理実装
-
-v2.5.2 (2025-07-22):
-- 戦闘プラグイン常時ON問題修正: 戦闘中のみ有効化・戦闘終了時は即座に無効化
-- 非戦闘中自動無効化: ダンジョン探索中・移動中は戦闘プラグイン強制OFF
-- 戦闘タイムアウト時無効化: 戦闘タイムアウト検出時の戦闘プラグイン適切無効化
-
-v2.5.1 (2025-07-22):
-- VNavMoveToTarget無限再帰緊急修正: フォールバック処理のyield vnav movetarget使用への修正
-- エラーログ詳細化: pcall失敗時の詳細エラー情報出力追加
-
-v2.5.0 (2025-07-22):
-- vnavmesh新API完全対応: IPC.vnavmesh.PathfindAndMoveTo + Player.CanMount/CanFly統合
-- VNavMoveTo/VNavMoveToFlag/VNavMoveToTarget関数実装: 包括的移動システム構築
-- Entity.Target.Position/Instances.Map.Flag.Vector3対応: 正確な座標取得システム
-- 全yield vnav系コマンドの新API置換: 12箇所のコマンド更新で統一性確保
+v2.4.0 (2025-07-22):
+- 戦闘終了判定改善: 敵の存在チェック強化で戦闘中誤判定を解決
+- 包括的戦闘状態検証: Player.InCombat + 敵ターゲット存在 + HP状態の多角的判定
 
 v2.4.0 (2025-07-22):
 - 戦闘終了判定改善: 敵の存在チェック強化で戦闘中誤判定を解決
@@ -258,8 +233,8 @@ local CONFIG = {
     -- 地図設定（SND Configから取得）
     MAP_TYPE = Config.Get("MAP_TYPE"), -- SND Configから取得
     
-    -- vnavmesh設定（IPC API使用）
-    DISABLE_IPC_VNAV = false, -- IPC vnavmesh API使用（安定版）
+    -- vnavmesh設定（v2.4.0シンプル版）
+    USE_SIMPLE_VNAV = true, -- シンプルなyield vnavコマンド使用
     
     -- ジョブ変更設定
     AUTO_JOB_CHANGE = true, -- 地図タイプ別の自動ジョブ変更機能
@@ -608,175 +583,9 @@ local function CheckForNearbyEnemies()
     return success and enemiesFound or false
 end
 
--- vnavmesh移動関数（v2.4.0新API対応）
-local function VNavMoveTo(dest, forceFly)
-    local success, result = pcall(function()
-        -- 座標の型チェック
-        if not dest or type(dest) ~= "table" then
-            LogError("VNavMoveTo: 無効な座標データ")
-            return false
-        end
-        
-        local x, y, z = dest.X or dest[1], dest.Y or dest[2], dest.Z or dest[3]
-        if not x or not y or not z then
-            LogError("VNavMoveTo: 不完全な座標データ (X=" .. tostring(x) .. ", Y=" .. tostring(y) .. ", Z=" .. tostring(z) .. ")")
-            return false
-        end
-        
-        -- 飛行可能性をチェック
-        local canMount = Player and Player.CanMount or false
-        local canFly = Player and Player.CanFly or false
-        local shouldFly = forceFly or (canMount and canFly)
-        
-        LogDebug("移動設定: CanMount=" .. tostring(canMount) .. ", CanFly=" .. tostring(canFly) .. ", ShouldFly=" .. tostring(shouldFly))
-        
-        -- IPC vnavmesh API使用（安定版）
-        if not CONFIG.DISABLE_IPC_VNAV and IPC and IPC.vnavmesh and IPC.vnavmesh.PathfindAndMoveTo then
-            LogInfo("IPC vnavmesh移動: " .. (shouldFly and "飛行" or "地上") .. " (" .. x .. ", " .. y .. ", " .. z .. ")")
-            return IPC.vnavmesh.PathfindAndMoveTo({X = x, Y = y, Z = z}, shouldFly)
-        else
-            -- フォールバック: 従来のyieldコマンド
-            LogInfo("vnav移動: " .. (shouldFly and "flyto" or "moveto") .. " (" .. x .. ", " .. y .. ", " .. z .. ")")
-            if shouldFly then
-                yield("/vnav flyto " .. x .. " " .. y .. " " .. z)
-            else
-                yield("/vnav moveto " .. x .. " " .. y .. " " .. z)
-            end
-            return true
-        end
-    end)
-    
-    return success and result or false
-end
+-- v2.4.0: シンプルなvnavmesh操作関数
 
--- フラグ移動関数（v2.4.0新API対応）
-local function VNavMoveToFlag(forceFly)
-    local success, result = pcall(function()
-        -- 飛行可能性をチェック
-        local canMount = Player and Player.CanMount or false
-        local canFly = Player and Player.CanFly or false
-        local shouldFly = forceFly or (canMount and canFly)
-        
-        -- IPC vnavmesh API使用（安定版）
-        if not CONFIG.DISABLE_IPC_VNAV and IPC and IPC.vnavmesh and IPC.vnavmesh.PathfindAndMoveTo then
-            -- フラグ座標取得（v2.4.0改良版）
-            if Instances and Instances.Map and Instances.Map.Flag then
-                local flagPos = nil
-                
-                -- Vector3を優先して取得
-                if Instances.Map.Flag.Vector3 then
-                    flagPos = Instances.Map.Flag.Vector3
-                    LogDebug("フラグ座標: Instances.Map.Flag.Vector3使用")
-                -- フォールバック: 直接Flagオブジェクト
-                elseif Instances.Map.Flag.X and Instances.Map.Flag.Y and Instances.Map.Flag.Z then
-                    flagPos = Instances.Map.Flag
-                    LogDebug("フラグ座標: Instances.Map.Flag直接使用")
-                end
-                
-                if flagPos and flagPos.X and flagPos.Y and flagPos.Z then
-                    LogInfo("IPC vnavmeshフラグ移動: " .. (shouldFly and "飛行" or "地上") .. " (" .. flagPos.X .. ", " .. flagPos.Y .. ", " .. flagPos.Z .. ")")
-                    return IPC.vnavmesh.PathfindAndMoveTo({X = flagPos.X, Y = flagPos.Y, Z = flagPos.Z}, shouldFly)
-                else
-                    LogWarn("フラグ座標の取得に失敗 - 座標データが不完全")
-                end
-            end
-        end
-        
-        -- フォールバック: 従来のyieldコマンド
-        LogInfo("vnav移動: " .. (shouldFly and "flyflag" or "moveflag"))
-        if shouldFly then
-            yield("/vnav flyflag")
-        else
-            yield("/vnav moveflag")
-        end
-        return true
-    end)
-    
-    return success and result or false
-end
-
--- vnavmesh停止関数（v2.4.0新API対応）
-local function VNavStop()
-    -- IPC vnavmesh API使用（安定版）
-    if not CONFIG.DISABLE_IPC_VNAV and IPC and IPC.vnavmesh and IPC.vnavmesh.Stop then
-        LogDebug("IPC vnavmesh停止")
-        return IPC.vnavmesh.Stop()
-    else
-        -- フォールバック: 従来のyieldコマンド
-        LogDebug("vnav停止")
-        yield("/vnav stop")
-        return true
-    end
-end
-
--- ターゲット移動関数（v2.4.0新API対応）
-local function VNavMoveToTarget(forceFly)
-    local success, result = pcall(function()
-        -- ターゲットの存在確認
-        if not HasTarget() or not Entity or not Entity.Target then
-            LogError("VNavMoveToTarget: ターゲットが存在しません")
-            return false
-        end
-        
-        -- ターゲットの座標取得
-        local targetPos = Entity.Target.Position
-        if not targetPos then
-            LogError("VNavMoveToTarget: ターゲット座標の取得に失敗")
-            return false
-        end
-        
-        -- 飛行可能性をチェック
-        local canMount = Player and Player.CanMount or false
-        local canFly = Player and Player.CanFly or false
-        local shouldFly = forceFly or (canMount and canFly)
-        
-        LogInfo("ターゲット移動: " .. (Entity.Target.Name or "Unknown") .. " (" .. targetPos.X .. ", " .. targetPos.Y .. ", " .. targetPos.Z .. ")")
-        
-        -- IPC vnavmesh API使用（安定版）
-        if not CONFIG.DISABLE_IPC_VNAV and IPC and IPC.vnavmesh and IPC.vnavmesh.PathfindAndMoveTo then
-            LogInfo("IPC vnavmeshターゲット移動: " .. (shouldFly and "飛行" or "地上"))
-            return IPC.vnavmesh.PathfindAndMoveTo({X = targetPos.X, Y = targetPos.Y, Z = targetPos.Z}, shouldFly)
-        else
-            -- フォールバック: 従来のyieldコマンド
-            LogInfo("vnav移動: movetarget")
-            yield("/vnav movetarget")
-            return true
-        end
-    end)
-    
-    if not success then
-        LogError("VNavMoveToTarget失敗: " .. tostring(result))
-        -- 従来のyieldコマンド使用
-        LogInfo("vnav移動: movetarget")
-        yield("/vnav movetarget")
-        return true
-    end
-    
-    return result
-end
-
--- 食事実行関数（SafeExecute定義後に移動）
-
--- 食事バフチェック・実行関数（メインループから呼び出し）
-local function CheckAndUseFoodItem()
-    if not CONFIG.AUTO_FOOD.ENABLED then
-        return
-    end
-    
-    local currentTime = os.clock()
-    
-    -- チェック間隔制御
-    if currentTime - lastFoodCheckTime < CONFIG.AUTO_FOOD.CHECK_INTERVAL then
-        return
-    end
-    
-    lastFoodCheckTime = currentTime
-    
-    -- 食事バフの残り時間チェック（10分以下で実行）
-    if ShouldUseFoodBuff() then
-        ExecuteFood()
-    end
-end
+-- v2.4.0: 食事機能はシンプル版のみ
 
 
 function Log(level, message, data)
@@ -2547,7 +2356,7 @@ end
 
 -- 初期化フェーズ
 local function ExecuteInitPhase()
-    LogInfo("トレジャーハント自動化 v2.5.4 を開始します (IPC API安定版 - 移動システム復元)")
+    LogInfo("トレジャーハント自動化 v2.4.0 を開始します (シンプル版)")
     LogInfo("設定: " .. CONFIG.MAP_TYPE .. " 地図")
     
     if not CheckPrerequisites() then
@@ -2556,7 +2365,7 @@ local function ExecuteInitPhase()
     end
     
     -- 食事効果チェック・使用
-    CheckAndUseFoodItem()
+    -- v2.4.0: 食事機能簡略化
     
     -- 地図タイプ別ジョブ変更
     if not ChangeJobForMapType() then
@@ -2587,7 +2396,7 @@ local function ExecuteMapPurchasePhase()
     end
     
     -- 食事効果チェック（フェーズ開始時）
-    CheckAndUseFoodItem()
+    -- v2.4.0: 食事機能簡略化
     
     -- インベントリ管理チェック
     if not CheckAndManageInventory() then
@@ -2730,7 +2539,7 @@ local function ExecuteMapPurchasePhase()
         -- 距離が遠い場合は移動
         if distance > 3.0 and IsVNavReady() then
             LogInfo("マーケットボードに近づいています...")
-            VNavMoveToTarget(false) -- v2.4.0新API: 地上移動
+            yield("/vnav movetarget")  -- v2.4.0: シンプルな移動
             Wait(3)
             
             local moveTimeout = 15
@@ -2907,7 +2716,7 @@ local function ExecuteMovementPhase()
         end
         
         -- 食事効果チェック（移動開始時）
-        CheckAndUseFoodItem()
+        -- v2.4.0: 食事機能簡略化
         
         -- インベントリ管理チェック
         if not CheckAndManageInventory() then
@@ -3085,7 +2894,7 @@ local function ExecuteMovementPhase()
                     
                     -- ターゲットに向かって飛行移動（v2.4.0新API）
                     LogInfo("ドマ反乱軍の門兵にVNavMoveToTargetで飛行接近中...")
-                    VNavMoveToTarget(true) -- 強制飛行
+                    yield("/vnav movetarget")  -- v2.4.0: シンプルな移動
                     Wait(2)
                     
                     -- 移動完了まで待機
@@ -3180,7 +2989,7 @@ local function ExecuteMovementPhase()
                         end
                     end
                     
-                    VNavMoveToFlag(true) -- v2.4.0新API: 強制飛行
+                    yield("/vnav flyflag")  -- v2.4.0: シンプルな飛行
                 end
                 
                 return  -- 処理完了後、移動フェーズを継続
@@ -3262,13 +3071,13 @@ local function ExecuteMovementPhase()
                             
                             local shouldFly = IsPlayerMounted() and CanFly()
                             SafeExecute(function()
-                                VNavMoveToFlag(true) -- v2.4.0新API: 強制飛行
+                                yield("/vnav flyflag")  -- v2.4.0: シンプルな飛行
                             end, "IPC vnavmesh PathfindAndMoveTo failed", 0)
                             return true
                         else
                             -- フォールバック: vnavmeshコマンド使用も安全化
                             SafeExecute(function()
-                                VNavMoveToFlag(true) -- v2.4.0新API: 強制飛行
+                                yield("/vnav flyflag")  -- v2.4.0: シンプルな飛行
                             end, "vnavmesh flyflag command failed", 0)
                             return true
                         end
@@ -3283,7 +3092,7 @@ local function ExecuteMovementPhase()
                 else
                     LogWarn("フラグ座標取得失敗 - コマンドで追加移動")
                     SafeExecute(function()
-                        VNavMoveToFlag(true) -- v2.4.0新API使用
+                        yield("/vnav flyflag")  -- v2.4.0: シンプルな飛行
                     end, "Fallback VNavMoveToFlag failed", 0)
                     return
                 end
@@ -3343,12 +3152,12 @@ local function ExecuteMovementPhase()
                             end
                             
                             SafeExecute(function()
-                                VNavMoveToFlag(true) -- v2.4.0新API使用
+                                yield("/vnav flyflag")  -- v2.4.0: シンプルな飛行
                             end, "VNavMoveToFlag restart failed", 0)
                             return true
                         else
                             SafeExecute(function()
-                                VNavMoveToFlag(true) -- v2.4.0新API: 強制飛行
+                                yield("/vnav flyflag")  -- v2.4.0: シンプルな飛行
                             end, "vnavmesh flyflag restart failed", 0)
                             return true
                         end
@@ -3688,7 +3497,7 @@ local function CheckForTreasureChest()
                 if success and targetPos then
                     -- v2.4.0新API: VNavMoveToTargetで移動
                     SafeExecute(function()
-                        return VNavMoveToTarget(true) -- 強制飛行
+                        return yield("/vnav movetarget")  -- v2.4.0: シンプルな移動
                     end, "Failed to start VNavMoveToTarget to treasure chest")
                     
                     -- 距離が近くなるまで待機（タイムアウト付き）
@@ -3704,12 +3513,12 @@ local function CheckForTreasureChest()
                     StopVNav()
                 else
                     LogWarn("ターゲット座標の取得に失敗 - コマンドフォールバック")
-                    VNavMoveToTarget(false) -- v2.4.0新API: 地上移動
+                    yield("/vnav movetarget")  -- v2.4.0: シンプルな移動
                     Wait(2)
                 end
             else
                 LogWarn("vnavmeshが準備できていません")
-                VNavMoveToTarget(false) -- v2.4.0新API: 地上移動
+                yield("/vnav movetarget")  -- v2.4.0: シンプルな移動
                 Wait(2)
             end
             
@@ -3743,7 +3552,7 @@ local function CheckForTreasureChest()
                             VNavMoveToTarget(true) -- v2.4.0新API: 飛行移動  -- fly=true
                         else
                             -- フォールバック: コマンド実行
-                            VNavMoveToTarget(false) -- v2.4.0新API: 地上移動
+                            yield("/vnav movetarget")  -- v2.4.0: シンプルな移動
                         end
                     end, "Failed to start final approach to treasure chest")
                     
@@ -3760,12 +3569,12 @@ local function CheckForTreasureChest()
                     StopVNav()
                 else
                     LogWarn("最終アプローチでターゲット座標の取得に失敗")
-                    VNavMoveToTarget(false) -- v2.4.0新API: 地上移動
+                    yield("/vnav movetarget")  -- v2.4.0: シンプルな移動
                     Wait(1)
                 end
             else
                 LogWarn("vnavmeshが利用できません - コマンドフォールバック")
-                VNavMoveToTarget(false) -- v2.4.0新API: 地上移動
+                yield("/vnav movetarget")  -- v2.4.0: シンプルな移動
                 Wait(1)
             end
             
@@ -4046,7 +3855,7 @@ local function AutoMoveForward()
                     -- vnavmeshを使ってターゲットに移動
                     yield("/automove off")
                     Wait(0.5)
-                    VNavMoveToTarget(false) -- v2.4.0新API: 地上移動
+                    yield("/vnav movetarget")  -- v2.4.0: シンプルな移動
                     Wait(1)
                     
                     -- 移動開始確認のため少し待機
@@ -4094,7 +3903,7 @@ local function CheckForTreasures()
             -- 距離が3yalm以上の場合は移動
             if distance > 3.0 and IsVNavReady() then
                 LogInfo(targetName .. "に近づいています...")
-                VNavMoveToTarget(false) -- v2.4.0新API: 地上移動
+                yield("/vnav movetarget")  -- v2.4.0: シンプルな移動
                 Wait(1)
                 
                 -- 移動完了待機
@@ -4153,7 +3962,7 @@ local function CheckForNextFloor()
             -- 距離が遠い場合は近づく
             if distance > 3.0 and IsVNavReady() then
                 LogInfo("扉に近づいています...")
-                VNavMoveToTarget(false) -- v2.4.0新API: 地上移動
+                yield("/vnav movetarget")  -- v2.4.0: シンプルな移動
                 Wait(2)
                 
                 -- 移動完了待機
@@ -4310,7 +4119,7 @@ local function CheckAndInteractPriorityTargets(currentFloor, maxFloors)
                     -- 距離が3yalm以上の場合は移動
                     if distance > 3.0 and IsVNavReady() then
                         LogInfo(actualTargetName .. "に接近中...")
-                        VNavMoveToTarget(false) -- v2.4.0新API: 地上移動
+                        yield("/vnav movetarget")  -- v2.4.0: シンプルな移動
                         Wait(1)
                         
                         -- 移動完了待機（タイムアウト付き）
@@ -4431,7 +4240,7 @@ local function ExecuteDungeonPhase()
     end
     
     -- 食事効果チェック（ダンジョン開始時）
-    CheckAndUseFoodItem()
+    -- v2.4.0: 食事機能簡略化
     
     -- インベントリ管理チェック
     if not CheckAndManageInventory() then
@@ -4466,7 +4275,7 @@ local function ExecuteDungeonPhase()
                 local distance = GetDistanceToTarget()
                 if distance > 3.0 then
                     LogInfo("召喚魔法陣に接近中... (現在距離: " .. string.format("%.2f", distance) .. "yalm)")
-                    VNavMoveToTarget(false) -- v2.4.0新API: 地上移動
+                    yield("/vnav movetarget")  -- v2.4.0: シンプルな移動
                     
                     -- 接近完了まで待機
                     local approachStart = os.clock()
@@ -4632,7 +4441,7 @@ local function ExecuteDungeonPhase()
                         -- 距離が遠い場合は接近
                         if distance > 3.0 and IsVNavReady() then
                             LogInfo("脱出地点に接近中...")
-                            VNavMoveToTarget(false) -- v2.4.0新API: 地上移動
+                            yield("/vnav movetarget")  -- v2.4.0: シンプルな移動
                             Wait(2)
                             
                             -- 接近完了待機
@@ -4747,7 +4556,7 @@ local phaseExecutors = {
 
 -- メインループ（エラーハンドラー付き）
 local function SafeMainLoop()
-    LogInfo("==================== TREASURE HUNT AUTOMATION v2.5.4 開始 (REVERT) ====================")
+    LogInfo("==================== TREASURE HUNT AUTOMATION v2.4.0 開始 ====================")
     LogInfo("【yield vnav系コマンド完全移行版】安定した従来コマンド使用・壁衝突対策準備")
     LogInfo("==================== システム初期化中 ====================")
     
@@ -4782,7 +4591,7 @@ local function SafeMainLoop()
         
         -- 定期的な食事効果・インベントリ・マテリア精製チェック（10イテレーションごと）
         if iteration % 10 == 0 then
-            CheckAndUseFoodItem()
+            -- v2.4.0: 食事機能簡略化
             if not CheckAndManageInventory() then
                 break  -- インベントリ満杯の場合はループを終了
             end
